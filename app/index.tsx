@@ -1,10 +1,10 @@
 import { ScrollView, Text } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-import { onBoardScreenStyles as s } from "@/styles/onBoardScreen";
+import { lockScreenStyles as s } from "@/styles/lockScreen";
 const styles = s;
 
-export default function OnBoardScreen() {
+export default function lockScreen() {
   return (
     <SafeAreaView>
       <ScrollView>
