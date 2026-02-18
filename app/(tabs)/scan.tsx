@@ -8,7 +8,7 @@ export default function HomeScreen() {
   return (
     <SafeAreaView>
       <ScrollView>
-        <Text>Home screen</Text>
+        <Text>Scan QR</Text>
       </ScrollView>
     </SafeAreaView>
   );

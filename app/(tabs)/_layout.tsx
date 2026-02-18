@@ -20,18 +20,27 @@ export default function TabLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          title: "OnBoard",
+          title: "Send",
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="swap-horizontal" size={size} color={color} />
+            <Ionicons name="send" size={size} color={color} />
           ),
         }}
       />
       <Tabs.Screen
-        name="home"
+        name="scan"
         options={{
-          title: "Home",
+          title: "Scan",
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="swap-horizontal" size={size} color={color} />
+            <Ionicons name="qr-code-outline" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="request"
+        options={{
+          title: "request",
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="qr-code-outline" size={size} color={color} />
           ),
         }}
       />
