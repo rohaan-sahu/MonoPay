@@ -20,9 +20,9 @@ export default function TabLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          title: "Send",
+          title: "Home",
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="send" size={size} color={color} />
+            <Ionicons name="home" size={size} color={color} />
           ),
         }}
       />
@@ -40,7 +40,7 @@ export default function TabLayout() {
         options={{
           title: "request",
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="qr-code-outline" size={size} color={color} />
+            <Ionicons name="card-outline" size={size} color={color} />
           ),
         }}
       />

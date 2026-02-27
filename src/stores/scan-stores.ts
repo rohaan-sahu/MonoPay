@@ -4,20 +4,26 @@ import {create} from 'zustand';
 interface ScanState {
 
    // data
+   scanned: boolean;
+   scannedUrl: string;
    items: string[];
 
    // actions
    //GET
-   getItems: ()=> string[] 
+   getItems: ()=> string[];
 
-   //SET
-   setItem: (param: string) => void
+   //SET 
+   setItem: (param: string) => void;
+   setscanned: (val: boolean) => void;
+   setScannedUrl: (url:string) => void;
 }
 
 export const useScanStore = create<ScanState>(
    (set, get) => ({
      // Initial state
      items: [],
+     scanned: false,
+     scannedUrl: '',
 
      // GET state
      getItems: () => get().items,
@@ -29,6 +35,14 @@ export const useScanStore = create<ScanState>(
                      pastState.items
                      :[paramY,...pastState.items]
          })
-      )}
+      )},
+
+      setscanned: (val) => {
+        set({ scanned: val })
+      },
+
+      setScannedUrl: (url) => {
+         set({ scannedUrl: url })
+      }
    }),
 );
