@@ -12,13 +12,13 @@ export default function SearchBar({search,setSearch}:Prop) {
         <View style={s.searchBar}>
             <Ionicons name="search" size={20} color="#c3c3d1" />
             <TextInput
-            style={s.input}
-            placeholder="find every one here..." 
-            placeholderTextColor="#6B7280"
-            value={search}
-            onChangeText={setSearch}
-            autoCapitalize="none"
-            autoCorrect={false}
+                style={s.input}
+                placeholder="find every one here..." 
+                placeholderTextColor="#6B7280"
+                value={search}
+                onChangeText={setSearch}
+                autoCapitalize="none"
+                autoCorrect={false}
             />
         </View>
     )

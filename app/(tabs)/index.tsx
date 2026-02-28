@@ -6,9 +6,10 @@ import { useState } from "react";
 import { useRouter } from "expo-router";
 import { homeScreenStyles as s } from "@/styles/homeScreen";
 import SearchBar from "@/components/SearchBar";
-import { IdCard, ScanButton } from "@/components/HomeButtons";
+import { IdCardButton, ScanButton } from "@/components/HomeButtons";
 import SlideCards from "@/components/SlideCards";
 import LockScreen from "../lock";
+import IdCard from "@/components/IdCard";
 
 export default function SendScreen() {
   const [search,setSearch] = useState("");
@@ -19,7 +20,7 @@ export default function SendScreen() {
       <ScrollView>
         <View style={s.headerContainer}>
           <SearchBar search={search} setSearch={setSearch}/>
-          <IdCard/>
+          <IdCardButton/>
         </View>
         <View style = {s.bannerContainer}>
           <SlideCards />
@@ -31,7 +32,8 @@ export default function SendScreen() {
           <ScanButton/>
         </View>
         <LockScreen/>
-  </ScrollView>
+        <IdCard/>
+      </ScrollView>
     </SafeAreaView>
   );
 }

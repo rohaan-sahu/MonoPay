@@ -22,7 +22,7 @@ export function ScanButton(){
     )
 }
 
-export function IdCard() {
+export function IdCardButton() {
   const [count,setCount] = useState<number>(0);
 
   return(
@@ -43,9 +43,9 @@ export default function LockButton() {
       <TouchableOpacity
             style={s.scanBtn}
             onPress={() => router.push("/lock")}
-          >
-            <Ionicons name="keypad" size={20} color="#0a0a1a" />
-          </TouchableOpacity>
+      >
+        <Ionicons name="keypad" size={20} color="#0a0a1a" />
+      </TouchableOpacity>
           <Text style={s.homeButtonText}>Unlock</Text>
     </View>
   )

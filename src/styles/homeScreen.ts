@@ -24,14 +24,14 @@ export const homeScreenStyles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "#b5b5be",
+    backgroundColor: "#fcfcfc",
     padding: 24,
   },
   btnDisabled: {
     opacity: 0.6,
   },
   btnText: {
-    color: "#0D0D12",
+    color: "#e7e7e742",
     fontWeight: "600",
     fontSize: 16,
   },
@@ -50,11 +50,13 @@ export const homeScreenStyles = StyleSheet.create({
   },
   homeButtonText: {
     fontSize: 12,
-    color: "#fff",
+    color: "#000000",
     textAlign: "center",
+  },idCard: {
+
   },
   idCardBtn: {
-    backgroundColor: "#27996a",
+    backgroundColor: "#58cb9b",
     borderRadius: 20,
     alignItems: "center",
     justifyContent: "center",
@@ -84,7 +86,7 @@ export const homeScreenStyles = StyleSheet.create({
   },
   scanBtn: {
     flex: 1,
-    backgroundColor: "#27996a",
+    backgroundColor: "#58cb9b",
     paddingVertical: 16,
     borderRadius: 40,
     alignItems: "center",

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, Button, Alert } from 'react-native';
-import { authenticateUser } from '@/services/authServices';
+import { authenticateUser } from '@/services/localAuthServices';
 import { Ionicons } from '@expo/vector-icons';
 
 export default function LockScreen() {
@@ -23,8 +23,7 @@ export default function LockScreen() {
 
     return (
       <View >
-        <Ionicons name = 'apps' />
-        <Text>Screen unlocked</Text>
+        <Text>Screen unlocked. Rendered from `./app/lock.tsx`</Text>
       </View>
     );
   }
