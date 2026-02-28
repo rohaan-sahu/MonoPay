@@ -6,7 +6,7 @@ import { useState } from "react";
 import { useRouter } from "expo-router";
 import { homeScreenStyles as s } from "@/styles/homeScreen";
 import SearchBar from "@/components/SearchBar";
-import { IdCardButton, ScanButton } from "@/components/HomeButtons";
+import { IdCardButton, NetworkToggle, ScanButton } from "@/components/HomeButtons";
 import SlideCards from "@/components/SlideCards";
 import LockScreen from "../lock";
 import IdCard from "@/components/IdCard";
@@ -19,6 +19,7 @@ export default function SendScreen() {
     <SafeAreaView style={s.safe} edges={["top"]}>
       <ScrollView>
         <View style={s.headerContainer}>
+          <NetworkToggle/>
           <SearchBar search={search} setSearch={setSearch}/>
           <IdCardButton/>
         </View>

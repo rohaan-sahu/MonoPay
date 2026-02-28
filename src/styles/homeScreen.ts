@@ -31,7 +31,7 @@ export const homeScreenStyles = StyleSheet.create({
     opacity: 0.6,
   },
   btnText: {
-    color: "#e7e7e742",
+    color: "#14731442",
     fontWeight: "600",
     fontSize: 16,
   },
@@ -52,16 +52,15 @@ export const homeScreenStyles = StyleSheet.create({
     fontSize: 12,
     color: "#000000",
     textAlign: "center",
-  },idCard: {
-
   },
   idCardBtn: {
     backgroundColor: "#58cb9b",
     borderRadius: 20,
     alignItems: "center",
     justifyContent: "center",
-    height: 34,
-    width: 34
+    height: 32,
+    width: 32,
+    borderWidth: 5
   },
   idCardBtnText: {
     fontSize: 12,
@@ -94,5 +93,16 @@ export const homeScreenStyles = StyleSheet.create({
     height: 54,
     width: 54,
     margin: 10
+  },
+  networkToggleIconBox: {
+    width: 32,
+    height: 32,
+    borderRadius: 20,
+    backgroundColor: "#1E1E28",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  networkToggleProfileIconBoxDevnet: {
+    backgroundColor: "#2D2310",
   },
 });

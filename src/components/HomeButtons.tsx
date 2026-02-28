@@ -4,6 +4,8 @@ import { homeScreenStyles as s } from "@/styles/homeScreen";
 import {TouchableOpacity,Text,View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 
+import { useWalletStore } from '@/stores/wallet-stores';
+
 export function ScanButton(){
 
     const router = useRouter();
@@ -23,14 +25,14 @@ export function ScanButton(){
 }
 
 export function IdCardButton() {
-  const [count,setCount] = useState<number>(0);
+  const router = useRouter();
 
   return(
     <TouchableOpacity
         style={s.idCardBtn}
-        onPress={() => setCount((s)=> s+1)}
+        onPress={() => router.push("/(me)/profile")}
       >
-        <Text>{count}</Text>
+        <Text>P</Text>
       </TouchableOpacity>
 )
 }
@@ -47,6 +49,25 @@ export default function LockButton() {
         <Ionicons name="keypad" size={20} color="#0a0a1a" />
       </TouchableOpacity>
           <Text style={s.homeButtonText}>Unlock</Text>
+    </View>
+  )
+}
+
+export function NetworkToggle() {
+  const isDevnet = useWalletStore((store) => store.isDevnet);
+  const toggleNetwork = useWalletStore((store) => store.toggleNetwork);
+
+  return (
+    <View style={[s.networkToggleIconBox, isDevnet && s.networkToggleProfileIconBoxDevnet]}>
+      <TouchableOpacity
+        onPress={toggleNetwork}
+      >
+        <Ionicons
+          name={isDevnet ? "flask" : "globe"}
+          size={20}
+          color={isDevnet ? "#F59E0B" : "#14F195"}
+        />
+      </TouchableOpacity>
     </View>
   )
 }

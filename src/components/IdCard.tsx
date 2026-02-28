@@ -18,6 +18,7 @@ export default function IdCard() {
                         source={displayPic}
                         style={s.idCardImage}
                     />
+                    <Ionicons name="checkmark-done" size={18} color="#000000a3" />
                     <Text>{verified}</Text>
                 </View>
                 <TouchableOpacity style={s.idCardQR}>
