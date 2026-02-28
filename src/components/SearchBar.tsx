@@ -9,7 +9,8 @@ interface Prop {
 
 export default function SearchBar({search,setSearch}:Prop) {
     return (
-        <View style={s.inputContainer}>
+        <View style={s.searchBar}>
+            <Ionicons name="search" size={20} color="#c3c3d1" />
             <TextInput
             style={s.input}
             placeholder="find every one here..." 

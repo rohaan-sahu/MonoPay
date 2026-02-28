@@ -1,6 +1,7 @@
 import {create} from 'zustand';
 import {persist,createJSONStorage} from 'zustand/middleware';
 import { mmkvStorage } from '@/lib/storageMMKV';
+//import { asyncStorageAdapter } from '@/lib/storageAsync';
 
 // store shape
 interface TemplateState {

@@ -18,6 +18,28 @@ export default function ScannerCamera() {
 
     const mode:CameraMode = "picture";
 
+    // Scan QR code
+    const takeUri = async (res:BarcodeScanningResult) => {
+    if (!hasScanned.current){
+        setUri(res.data);
+        console.log("data: ",res.data);
+        hasScanned.current = true;
+    }
+    };
+
+    useEffect(() => {
+        console.log("URI: ",uri);
+        setTimeout(() => {
+            console.log("Uri cleared after 5 seconds");
+            hasScanned.current = false;
+            setUri("");
+        },5000);
+    },[uri]);
+
+    const toggleFacing = () => {
+        setFacing((prev) => (prev === "back" ? "front" : "back"));
+    };
+
     // Get camera permissions
     if (!permission) {
     return null;
@@ -33,23 +55,6 @@ export default function ScannerCamera() {
         </View>
     );
     }
-
-    // Scan QR code
-    const takeUri = async (res:BarcodeScanningResult) => {
-    if (!hasScanned.current){
-        setUri(res.data);
-        console.log("data: ",res.data);
-        hasScanned.current = true;
-    }
-    };
-
-    useEffect(() => {
-        console.log("URI: ",uri);
-    },[hasScanned]);
-
-    const toggleFacing = () => {
-        setFacing((prev) => (prev === "back" ? "front" : "back"));
-    };
 
     return(
         <View style={s.cameraContainer}>
