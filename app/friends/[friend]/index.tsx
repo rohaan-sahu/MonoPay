@@ -124,6 +124,18 @@ export default function SettingsScreen() {
         {/* id card */}
         <IdCard/>
 
+        {/* balance box */}
+        {balance2 !== null && (
+            <View style={s.card}>
+              <Text style={s.label}>SOL Balance</Text>
+              <View style={s.balanceRow}>
+                <Text style={s.balance}>{balance2.toFixed(4)}</Text>
+                <Text style={s.sol}>SOL</Text>
+              </View>
+              <Text style={s.addr}>{short(addr, 6)}</Text>
+            </View>
+          )}
+
         {/* Wallet & account list */}
         {searchHistory.length > 0 && balance === null && (
             <View style={s.historySection}>
@@ -144,16 +156,7 @@ export default function SettingsScreen() {
             </View>
           )}
 
-          {balance2 !== null && (
-            <View style={s.card}>
-              <Text style={s.label}>SOL Balance</Text>
-              <View style={s.balanceRow}>
-                <Text style={s.balance}>{balance2.toFixed(4)}</Text>
-                <Text style={s.sol}>SOL</Text>
-              </View>
-              <Text style={s.addr}>{short(addr, 6)}</Text>
-            </View>
-          )}
+          
 
         <View style={{ height: 100 }} />
       </ScrollView>

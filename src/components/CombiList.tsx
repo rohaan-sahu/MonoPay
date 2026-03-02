@@ -31,10 +31,10 @@ const DATA = [
 const item = require ("../../assets/images/MonoPay-splash-screen-transparent.png");
 
 interface Prop {
-  onPress: () => void;
+  onPress: (friendId: string) => void;
 }
 
-export default function CombiList() {
+export default function CombiList({onPress}:Prop) {
   const router = useRouter();
   
   return (
@@ -47,7 +47,7 @@ export default function CombiList() {
                     </TouchableOpacity>
                 )}
                 renderItem={({item}) => (
-                    <TouchableOpacity onPress={() => router.push("/friends/${friendId}")}>
+                    <TouchableOpacity onPress={() => onPress(item)}>
                         <View style={s.friendsItem}>
                             <Text style={s.friendsTitle}>{item}</Text>
                         </View>

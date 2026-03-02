@@ -42,7 +42,7 @@ export default function SettingsScreen() {
         </View>
         
         <View style={s.friendsListContainer}>
-            <CombiList />
+            <CombiList onPress={(friendId) => router.push(`/friends/${friendId}`)}/>
         </View>
       </View>
 
