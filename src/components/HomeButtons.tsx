@@ -1,6 +1,6 @@
 import { useRouter } from "expo-router";
 import { useState } from "react";
-import { homeScreenStyles as s } from "@/styles/homeScreen";
+import { homeScreenStyles as s } from "@/styles/screenHome";
 import {TouchableOpacity,Text,View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 
@@ -24,13 +24,31 @@ export function ScanButton(){
     )
 }
 
+export function FriendListButton(){
+
+    const router = useRouter();
+
+    return (
+      <View style={s.homeButtonView}>
+        <TouchableOpacity
+            style={s.scanBtn}
+            onPress={() => router.push("/friends")}
+          >
+            <Ionicons name="list" size={20} color="#0a0a1a" />
+          </TouchableOpacity>
+          <Text style={s.homeButtonText}>Send funds</Text>
+          <Text style={s.homeButtonText}>to anyone</Text>
+      </View>
+    )
+}
+
 export function IdCardButton() {
   const router = useRouter();
 
   return(
     <TouchableOpacity
         style={s.idCardBtn}
-        onPress={() => router.push("/(me)/profile")}
+        onPress={() => router.push("/profile")}
       >
         <Text>P</Text>
       </TouchableOpacity>

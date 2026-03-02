@@ -4,9 +4,9 @@ import { Ionicons } from "@expo/vector-icons";
 
 import { useState } from "react";
 import { useRouter } from "expo-router";
-import { homeScreenStyles as s } from "@/styles/homeScreen";
-import SearchBar from "@/components/SearchBar";
-import { IdCardButton, NetworkToggle, ScanButton } from "@/components/HomeButtons";
+import { homeScreenStyles as s } from "@/styles/screenHome";
+import { SearchBarRound } from "@/components/SearchBars";
+import { FriendListButton, IdCardButton, NetworkToggle, ScanButton } from "@/components/HomeButtons";
 import SlideCards from "@/components/SlideCards";
 import LockScreen from "../lock";
 import IdCard from "@/components/IdCard";
@@ -20,7 +20,7 @@ export default function SendScreen() {
       <ScrollView>
         <View style={s.headerContainer}>
           <NetworkToggle/>
-          <SearchBar search={search} setSearch={setSearch}/>
+          <SearchBarRound search={search} setSearch={setSearch} placeHolder="find everyone here..."/>
           <IdCardButton/>
         </View>
         <View style = {s.bannerContainer}>
@@ -28,7 +28,7 @@ export default function SendScreen() {
         </View>
         <View style ={s.btnContainer}>
           <ScanButton/>
-          <ScanButton/>
+          <FriendListButton/>
           <ScanButton/>
           <ScanButton/>
         </View>

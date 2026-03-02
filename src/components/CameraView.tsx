@@ -6,7 +6,7 @@ import {
   useCameraPermissions,
 } from "expo-camera";
 import { View,Text, Button } from "react-native";
-import { scanScreenStyles as s } from "@/styles/scanScreen";
+import { scanScreenStyles as s } from "@/styles/screenScan";
 import { useEffect, useRef, useState } from "react";
 
 export default function ScannerCamera() {

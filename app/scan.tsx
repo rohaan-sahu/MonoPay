@@ -1,5 +1,5 @@
 import { StyleSheet, Text, View,TouchableOpacity } from "react-native";
-import { scanScreenStyles as styles } from "@/styles/scanScreen";
+import { scanScreenStyles as styles } from "@/styles/screenScan";
 import { useRouter } from "expo-router";
 
 import ScannerCamera from "@/components/CameraView";

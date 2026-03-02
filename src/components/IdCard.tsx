@@ -1,5 +1,5 @@
 import { Text,View,Image, TouchableOpacity } from "react-native";
-import { profileScreenStyles as s } from "@/styles/profileScreen";
+import { idCardStyles as s} from "@/styles/miscIdCard";
 import { Ionicons } from "@expo/vector-icons";
 
 export default function IdCard() {

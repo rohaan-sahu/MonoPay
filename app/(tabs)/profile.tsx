@@ -1,8 +1,6 @@
 import {
-  StyleSheet,
   Text,
   View,
-  Switch,
   TouchableOpacity,
   Alert,
   ScrollView,
@@ -12,29 +10,25 @@ import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 
 // Local imports
-import { profileScreenStyles as s } from "@/styles/profileScreen";
+import { profileScreenStyles } from "@/styles/screenProfile";
 import { useWalletStore } from '@/stores/wallet-stores';
 import IdCard from "@/components/IdCard";
+import { BackButton, ProfileNetworkToggleBox } from "@/components/ProfileButtons";
+import { backButtonStyles } from "@/styles/buttonBack";
+
+const s = {...profileScreenStyles, ...backButtonStyles};
 
 export default function SettingsScreen() {
-  const router = useRouter();
-  const isDevnet = useWalletStore((store) => store.isDevnet);
-  const toggleNetwork = useWalletStore((store) => store.toggleNetwork);
   const favorites = useWalletStore((store) => store.favorites);
   const searchHistory = useWalletStore((store) => store.searchHistory);
   const clearHistory = useWalletStore((store) => store.clearHistory);
 
   return (
     <SafeAreaView style={s.profileSafe} edges={["top"]}>
-        { /* Back Buttons */}
-      <TouchableOpacity style = {s.profileBackButton} onPress = {() => router.back()}>
-        <Ionicons name = "arrow-back" size={24} color= "#fff"/>
-        <Text style = {s.profileBackText}>Back</Text>
-      </TouchableOpacity>
+      { /* Back Buttons */}
+      <BackButton/>
+    
       <ScrollView style={s.profileScroll}>
-
-       
-
         {/* Heading */}
         <Text style={s.profileTitle}>Profile</Text>
         <Text style={s.profileSubtitle}>Share your Id card</Text>
@@ -45,32 +39,10 @@ export default function SettingsScreen() {
         {/* network section */}
         <Text style={s.profileSectionTitle}>Network</Text>
         <View style={s.profileCard}>
-          <View style={s.profileRow}>
-            <View style={s.profileRowLeft}>
-              <View style={[s.profileIconBox, isDevnet && s.profileIconBoxDevnet]}>
-                <Ionicons
-                  name={isDevnet ? "flask" : "globe"}
-                  size={20}
-                  color={isDevnet ? "#F59E0B" : "#14F195"}
-                />
-              </View>
-              <View>
-                <Text style={s.profileLabel}>{isDevnet ? "Devnet" : "Mainnet"}</Text>
-                <Text style={s.profileSublabel}>
-                  {isDevnet ? "Testing network (free SOL)" : "Production network"}
-                </Text>
-              </View>
-            </View>
-            <Switch
-              value={isDevnet}
-              onValueChange={toggleNetwork}
-              trackColor={{ true: "#14F195", false: "#2A2A35" }}
-              thumbColor="#FFFFFF"
-            />
-          </View>
+          <ProfileNetworkToggleBox />
         </View>
 
-        {/* stats section */}
+        {/* To be modified. stats section */}
         <Text style={s.profileSectionTitle}>Data</Text>
         <View style={s.profileCard}>
           <TouchableOpacity 
@@ -130,4 +102,3 @@ export default function SettingsScreen() {
     </SafeAreaView>
   );
 }
-

@@ -1,7 +1,7 @@
 import { ScrollView, Text } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-import { onBoardScreenStyles as s } from "@/styles/requestScreen";
+import { onBoardScreenStyles as s } from "@/styles/screenRequest";
 
 export default function RequestScreen() {
   return (
