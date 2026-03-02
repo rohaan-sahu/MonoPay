@@ -2,7 +2,9 @@ import {
   StyleSheet,
   View,
   StatusBar,
-  Image
+  Image,
+  Text,
+  TouchableOpacity
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import {useState} from "react";

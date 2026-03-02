@@ -7,6 +7,7 @@ import {
 
 // Local imports
 import { friendsScreenStyles as s } from "@/styles/screenFriends";
+import { useRouter } from "expo-router";
 
 const DATA = [
   {
@@ -29,7 +30,12 @@ const DATA = [
 
 const item = require ("../../assets/images/MonoPay-splash-screen-transparent.png");
 
+interface Prop {
+  onPress: () => void;
+}
+
 export default function CombiList() {
+  const router = useRouter();
   
   return (
             <SectionList
@@ -41,7 +47,7 @@ export default function CombiList() {
                     </TouchableOpacity>
                 )}
                 renderItem={({item}) => (
-                    <TouchableOpacity>
+                    <TouchableOpacity onPress={() => router.push("/friends/${friendId}")}>
                         <View style={s.friendsItem}>
                             <Text style={s.friendsTitle}>{item}</Text>
                         </View>

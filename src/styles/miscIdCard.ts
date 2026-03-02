@@ -2,6 +2,7 @@ import { StyleSheet } from "react-native";
 
 export const idCardStyles = StyleSheet.create({
   idCardBox: {
+    flex: 1,
     width: "80%",
     backgroundColor: "#fff",
     borderRadius: 16,
