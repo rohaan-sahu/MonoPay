@@ -1,0 +1,192 @@
+import { router } from "expo-router";
+import { useState } from "react";
+import { Feather } from "@expo/vector-icons";
+import { ActivityIndicator, Pressable, ScrollView, Text, TextInput, View } from "react-native";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
+import { DismissKeyboard } from "@mpay/components/DismissKeyboard";
+import { useAuthStore } from "@mpay/stores/auth-store";
+import { cheksAuthScreen as s } from "@mpay/styles/cheksAuthScreen";
+
+type Tab = "phone" | "email";
+
+export default function SignInScreen() {
+  const { beginAuth, connectWallet } = useAuthStore();
+  const insets = useSafeAreaInsets();
+  const [tab, setTab] = useState<Tab>("phone");
+  const [phone, setPhone] = useState("");
+  const [email, setEmail] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  const handleSignIn = () => {
+    setError("");
+    setIsLoading(true);
+
+    const result = beginAuth({
+      mode: "sign-in",
+      channel: tab,
+      phone: tab === "phone" ? phone : undefined,
+      email: tab === "email" ? email : undefined
+    });
+
+    setIsLoading(false);
+
+    if (!result.ok) {
+      setError(result.error ?? "Something went wrong.");
+      return;
+    }
+
+    router.push("/(auth)/otp");
+  };
+
+  const handleWalletConnect = async () => {
+    setError("");
+    setIsLoading(true);
+
+    try {
+      const result = await connectWallet("sign-in");
+
+      if (!result.ok) {
+        setError(result.error ?? "Wallet connection failed.");
+        return;
+      }
+
+      if (result.locked) {
+        router.push("/lock");
+      } else if (result.needsPasscodeSetup) {
+        router.push("/(auth)/setup-passcode");
+      } else {
+        router.replace("/(tabs)/home");
+      }
+    } catch {
+      setError("Wallet connection failed. Please try again.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  return (
+    <SafeAreaView style={s.page} edges={["top"]}>
+      <DismissKeyboard>
+        <View style={s.root}>
+          <View style={[s.orb, s.orbTop]} />
+          <View style={[s.orb, s.orbBottom]} />
+
+          <View style={s.content}>
+            {/* Header */}
+            <View style={s.headerRow}>
+              <Pressable style={s.iconButton} onPress={() => router.back()}>
+                <Feather name="arrow-left" size={20} color="#525252" />
+              </Pressable>
+              <Pressable style={s.iconButton}>
+                <Feather name="help-circle" size={20} color="#525252" />
+              </Pressable>
+            </View>
+
+            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 20 }}>
+              {/* Heading */}
+              <View style={s.headingWrap}>
+                <Text style={s.heading}>
+                  Welcome <Text style={s.headingMuted}>back</Text>
+                </Text>
+              </View>
+
+              {/* Tabs */}
+              <View style={s.tabRow}>
+                <Pressable onPress={() => { setTab("phone"); setError(""); }}>
+                  <Text style={tab === "phone" ? s.tabActive : s.tabInactive}>Phone</Text>
+                </Pressable>
+                <Pressable onPress={() => { setTab("email"); setError(""); }}>
+                  <Text style={tab === "email" ? s.tabActive : s.tabInactive}>Email</Text>
+                </Pressable>
+              </View>
+
+              {/* Input Card */}
+              <View style={s.card}>
+                <View style={s.cardHeader}>
+                  <View style={s.cardIconWrap}>
+                    <Feather name={tab === "phone" ? "phone" : "mail"} size={22} color="#525252" />
+                  </View>
+                  <View>
+                    <Text style={s.cardTitle}>{tab === "phone" ? "Phone Number" : "Email Address"}</Text>
+                    <Text style={s.cardSubtitle}>
+                      {tab === "phone" ? "Enter your registered number" : "Enter your registered email"}
+                    </Text>
+                  </View>
+                </View>
+
+                {tab === "phone" ? (
+                  <TextInput
+                    style={s.input}
+                    value={phone}
+                    onChangeText={setPhone}
+                    placeholder="+1 (555) 000-0000"
+                    placeholderTextColor="#a3a3a3"
+                    keyboardType="phone-pad"
+                  />
+                ) : (
+                  <TextInput
+                    style={s.input}
+                    value={email}
+                    onChangeText={setEmail}
+                    placeholder="you@example.com"
+                    placeholderTextColor="#a3a3a3"
+                    keyboardType="email-address"
+                    autoCapitalize="none"
+                  />
+                )}
+
+                {!!error && (
+                  <View style={s.errorBox}>
+                    <Text style={s.errorText}>{error}</Text>
+                  </View>
+                )}
+
+                {/* Divider */}
+                <View style={s.dividerRow}>
+                  <View style={s.dividerLine} />
+                  <Text style={s.dividerText}>or connect wallet</Text>
+                  <View style={s.dividerLine} />
+                </View>
+
+                {/* Wallet Connect */}
+                <Pressable style={s.walletConnectButton} onPress={handleWalletConnect}>
+                  <Feather name="link" size={18} color="#171717" />
+                  <Text style={s.walletConnectText}>Connect Wallet</Text>
+                </Pressable>
+              </View>
+            </ScrollView>
+          </View>
+
+          {/* Footer — outside content to avoid paddingHorizontal and sits flush at bottom */}
+          <View style={[s.footerShell, { paddingBottom: Math.max(insets.bottom, 8) }]}>
+            <View style={s.footer}>
+              <View>
+                <Text style={s.footerLabel}>ready to</Text>
+                <Text style={s.footerTitle}>Sign In</Text>
+              </View>
+              <Pressable
+                style={[s.ctaButton, isLoading && s.ctaButtonDisabled]}
+                onPress={handleSignIn}
+                disabled={isLoading}
+              >
+                {isLoading ? (
+                  <ActivityIndicator size="small" color="#171717" />
+                ) : (
+                  <Feather name="arrow-right" size={24} color="#171717" />
+                )}
+              </Pressable>
+            </View>
+
+            <Text style={s.bottomLink}>
+              Don't have an account?{" "}
+              <Text style={s.bottomLinkAccent} onPress={() => router.replace("/(auth)/sign-up")}>
+                Sign up
+              </Text>
+            </Text>
+          </View>
+        </View>
+      </DismissKeyboard>
+    </SafeAreaView>
+  );
+}
