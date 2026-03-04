@@ -1,0 +1,41 @@
+{
+  "name": "MonoPay Identity Card",
+  "symbol": "MPID",
+  "description": "MonoPay on-chain identity credential for private social payments on Solana.",
+  "image": "https://rgpduszdifmvojvdyaad.supabase.co/storage/v1/object/public/monopay-assets/images/monopay-id-card-cover-v1.png",
+  "external_url": "https://monopay.app",
+  "seller_fee_basis_points": 0,
+  "attributes": [
+    {
+      "trait_type": "Product",
+      "value": "MonoPay ID"
+    },
+    {
+      "trait_type": "Network",
+      "value": "Solana"
+    },
+    {
+      "trait_type": "Privacy Layer",
+      "value": "Inco"
+    },
+    {
+      "trait_type": "Version",
+      "value": "v1"
+    }
+  ],
+  "properties": {
+    "category": "image",
+    "files": [
+      {
+        "uri": "https://rgpduszdifmvojvdyaad.supabase.co/storage/v1/object/public/monopay-assets/images/monopay-id-card-cover-v1.png",
+        "type": "image/png"
+      }
+    ],
+    "creators": [
+      {
+        "address": "AKnxeAoq6Stir2qnyGf8frbBapYfEWDVyUf8iE1WBzMk",
+        "share": 100
+      }
+    ]
+  }
+}
