@@ -1,8 +1,8 @@
-import React, { useState, useEffect,useRef } from 'react';
-import { View, Text, Button, Alert } from 'react-native';
-import { authenticateUser } from '@/services/localAuthServices';
+import React, { useState } from 'react';
+import { Alert,View, Text, Button, Linking } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
- import { CameraView } from 'expo-camera';
+import { CameraView } from 'expo-camera';
+
 
 export default function GoogleScanScreen() {
   const [isScanned, setIsScanneded] = useState(false);
@@ -10,10 +10,22 @@ export default function GoogleScanScreen() {
   //const [uri, setUri] = useState<string | null>(null);
 
   const handleScan = async () => {
-    const subscription = CameraView.onModernBarcodeScanned(({ data }) => {
+    const subscription = CameraView.onModernBarcodeScanned(async ({ data }) => {
         subscription.remove();
         CameraView.dismissScanner();
-        console.log(data); // "solana:ADDRESS?..."
+        console.log(data);
+
+        if (data.startsWith('solana')){
+            // const canOpen = await Linking.canOpenURL(data);
+            // if (canOpen) {
+            //     console.log('Wallet present: ',canOpen);
+            // } else {
+            //     console.log('No wallet');
+            //     Alert.alert('No Wallet', 'Please install Phantom or Solflare');
+            // }
+
+            await Linking.openURL(data);
+        };
     });
     const result = await CameraView.launchScanner({ barcodeTypes: ['qr'] });
     CameraView.dismissScanner();
@@ -21,7 +33,6 @@ export default function GoogleScanScreen() {
     setIsScanneded(true)
   };
 
-//   // Optional: Auto-prompt on mount
 //   useEffect(() => { handleScan(); }, []);
 
 //   if (isScanned) {
