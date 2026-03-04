@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { Alert,View, Text, Button, Linking } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { CameraView } from 'expo-camera';
+import { CameraView,Camera } from 'expo-camera';
+import * as ImagePicker from 'expo-image-picker';
 
 
 export default function GoogleScanScreen() {
@@ -15,7 +16,7 @@ export default function GoogleScanScreen() {
         CameraView.dismissScanner();
         console.log(data);
 
-        if (data.startsWith('solana')){
+        if (data.startsWith('solana:')){
             // const canOpen = await Linking.canOpenURL(data);
             // if (canOpen) {
             //     console.log('Wallet present: ',canOpen);
@@ -27,11 +28,22 @@ export default function GoogleScanScreen() {
             await Linking.openURL(data);
         };
     });
-    const result = await CameraView.launchScanner({ barcodeTypes: ['qr'] });
-    CameraView.dismissScanner();
-    console.log(result);
-    setIsScanneded(true)
+
   };
+
+  const scanFromGallery = async () => {
+    const result = await ImagePicker.launchImageLibraryAsync();
+    
+    if (!result.canceled) {
+        const scanned = await Camera.scanFromURLAsync(result.assets[0].uri,['qr']);
+        const data = scanned[0].data;
+        console.log(scanned[0].data); // your Solana Pay URL
+
+        if (data.startsWith('solana:')) {
+            await Linking.openURL(data);
+        }
+    }
+};
 
 //   useEffect(() => { handleScan(); }, []);
 
@@ -46,9 +58,16 @@ export default function GoogleScanScreen() {
 
   return (
     <View style={{justifyContent:"center", alignItems:"center"}}>
-      <Ionicons name = 'camera-outline' />
-      <Text>Click here to scan</Text>
-      <Button title="Scan" onPress={handleScan} />
+      <View>
+        <Ionicons name = 'camera-outline' />
+        <Text>Click here to scan</Text>
+        <Button title="Scan" onPress={handleScan} />
+      </View>
+      <View>
+        <Ionicons name = 'images-sharp' />
+        <Text>Click here to scan from Photo Gallary</Text>
+        <Button title="Screenshot" onPress={scanFromGallery} />
+      </View>
     </View>
   );
 }
