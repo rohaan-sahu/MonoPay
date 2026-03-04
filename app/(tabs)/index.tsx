@@ -10,7 +10,8 @@ import { FriendListButton, IdCardButton, NetworkToggle, QRCodeButton, ScanButton
 import SlideCards from "@/components/SlideCards";
 import LockScreen from "../lock";
 import IdCard from "@/components/IdCard";
-import QRCodeView from "@/components/QRcodeView";
+import QRCodeView, { QRCodeGen } from "@/components/QRcodeView";
+import GoogleScanScreen from "../goggleScan";
 
 
 export default function SendScreen() {
@@ -36,6 +37,8 @@ export default function SendScreen() {
         </View>
         <LockScreen/>
         <IdCard/>
+        <QRCodeGen/>
+        <GoogleScanScreen/>
       </ScrollView>
     </SafeAreaView>
   );

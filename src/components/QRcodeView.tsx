@@ -1,5 +1,5 @@
 import QRCode from 'react-native-qrcode-svg';
-import { simpleUrl as url } from '@/helpers/qrCodeUrlHelper';
+import { url } from '@/helpers/qrCodeUrlHelper';
 import { View,Text,TouchableOpacity,Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { BackButton } from './ProfileButtons';
@@ -8,9 +8,9 @@ const item = require ("../../assets/images/react-logo.png");
 const item2 = require ("../../assets/images/MonoPay-logo-green.png");
 
 
-function QRCodeGen() {
+export function QRCodeGen() {
     return (
-        <QRCode value={url.toString()} size={120} logo={item2} logoBorderRadius={10} quietZone={2}/>
+        <QRCode value={url.toString()} size={253}/>
     )
 }
 // style={s.idCardBox}
@@ -25,7 +25,6 @@ export default function QRCodeView() {
             <QRCodeGen/>{/* QR code */}
         </View>
         <View>{/* Address */}
-            <Text/>{/* address */}
             <TouchableOpacity><Text>copy</Text></TouchableOpacity>{/* copy */}
         </View>
         <View>{/* Token Selector */}

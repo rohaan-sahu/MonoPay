@@ -15,6 +15,14 @@ interface SimpleUrlProp {
   message: string;
 }
 
+export const url = encodeURL({
+  recipient: new PublicKey(SENDER_PUBKEY!),
+  //amount: new BigNumber(0.1),
+  //reference: Keypair.generate().publicKey,
+  label: 'My Store',
+  message: 'Order #123',
+});
+
 export function simpleUrl({recepient,label,message}:SimpleUrlProp) {
   encodeURL({
     recipient: new PublicKey(recepient),
