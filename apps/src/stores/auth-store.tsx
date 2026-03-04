@@ -1,8 +1,12 @@
 import { createContext, ReactNode, useContext, useMemo, useRef, useState } from "react";
+import { identityProvisioningService } from "@mpay/services/identity-provisioning-service";
+import { web3AuthService } from "@mpay/services/web3-auth-service";
 import { walletService } from "@mpay/services/wallet-service";
 
 type AuthMode = "sign-in" | "sign-up";
 type AuthChannel = "phone" | "email" | "wallet";
+type MetaplexNetwork = "solana-devnet" | "solana-testnet" | "solana-mainnet";
+type MetaplexSyncStatus = "synced" | "unknown" | "failed";
 
 type AuthPayload = {
   mode: AuthMode;
@@ -20,7 +24,15 @@ type UserProfile = {
   phone?: string;
   email?: string;
   walletAddress?: string;
+  supabaseUserId?: string;
   handle: string;
+  monopayTag?: string;
+  metaplexCardId?: string;
+  metaplexCardStatus?: "active" | "deactivated";
+  metaplexNetwork?: MetaplexNetwork;
+  metaplexSyncStatus?: MetaplexSyncStatus;
+  metaplexLastSyncAt?: string;
+  metaplexLastTxSignature?: string;
   passcode?: string;
 };
 
@@ -42,7 +54,21 @@ type AuthStore = {
   unlock: (passcode: string) => { ok: boolean; error?: string };
   lockApp: () => void;
   signOut: () => void;
-  linkWalletToUser: (walletAddress: string) => { ok: boolean; error?: string };
+  updateProfile: (input: { fullName: string; email?: string; monopayTag: string }) => Promise<{ ok: boolean; error?: string }>;
+  linkWalletToUser: (
+    walletAddress: string,
+    options?: {
+      supabaseUserId?: string;
+      handle?: string;
+      monopayTag?: string;
+      metaplexCardId?: string;
+      metaplexCardStatus?: "active" | "deactivated";
+      metaplexNetwork?: MetaplexNetwork;
+      metaplexSyncStatus?: MetaplexSyncStatus;
+      metaplexLastSyncAt?: string;
+      metaplexLastTxSignature?: string;
+    }
+  ) => { ok: boolean; error?: string };
 };
 
 const AuthContext = createContext<AuthStore | null>(null);
@@ -54,6 +80,7 @@ const DEMO_USER: UserProfile = {
   fullName: "MonoPay Demo",
   phone: "+15551234567",
   handle: "@monopaydemo",
+  monopayTag: "@monopaydemo",
   passcode: "1234"
 };
 
@@ -89,6 +116,16 @@ function isValidEmail(email: string) {
 
 function createHandle(name: string) {
   return `@${name.toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 14) || "user"}`;
+}
+
+function normalizeTag(tag?: string) {
+  const cleaned = tag?.trim().replace(/^@+/, "").toLowerCase().replace(/[^a-z0-9_]/g, "");
+
+  if (!cleaned) {
+    return undefined;
+  }
+
+  return `@${cleaned}`;
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -141,53 +178,158 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return { ok: true };
       },
       connectWallet: async (mode) => {
-        if (mode === "sign-in") {
-          const stored = await walletService.getStoredWallet();
+        const traceId = `wc-${Date.now().toString(36)}`;
+        console.log("[wallet-connect-trace] store:start", { traceId, mode });
 
-          if (!stored) {
-            return { ok: false, error: "No wallet found on this device. Please sign up first." };
-          }
+        try {
+          if (mode === "sign-in") {
+            const stored = await walletService.getStoredWallet();
+            console.log("[wallet-connect-trace] store:stored-wallet", {
+              traceId,
+              found: Boolean(stored),
+              publicKey: stored?.publicKey,
+              mode: stored?.mode,
+            });
 
-          let existing = registeredUsersRef.current.find((u) => u.walletAddress === stored.publicKey);
-
-          if (!existing) {
-            const persisted = await walletService.getStoredUserProfile();
-
-            if (persisted && persisted.walletAddress === stored.publicKey) {
-              existing = persisted;
-              setRegisteredUsers((prev) => [persisted, ...prev]);
-            } else {
-              return { ok: false, error: "No account linked to this wallet." };
+            if (!stored) {
+              return { ok: false, error: "No wallet found on this device. Please sign up first." };
             }
+
+            let existing = registeredUsersRef.current.find((u) => u.walletAddress === stored.publicKey);
+            console.log("[wallet-connect-trace] store:registered-lookup", {
+              traceId,
+              found: Boolean(existing),
+              localRegisteredUsersCount: registeredUsersRef.current.length,
+            });
+
+            if (!existing) {
+              const persisted = await walletService.getStoredUserProfile();
+              console.log("[wallet-connect-trace] store:persisted-profile", {
+                traceId,
+                found: Boolean(persisted),
+                persistedWalletAddress: persisted?.walletAddress,
+                persistedUserId: persisted?.id,
+                persistedHasPasscode: Boolean(persisted?.passcode),
+                persistedHasSupabaseUserId: Boolean(persisted?.supabaseUserId),
+              });
+
+              if (persisted && persisted.walletAddress === stored.publicKey) {
+                existing = persisted;
+                setRegisteredUsers((prev) => [persisted, ...prev]);
+              } else {
+                return { ok: false, error: "No account linked to this wallet." };
+              }
+            }
+
+            console.log("[wallet-connect-trace] store:web3-auth:start", {
+              traceId,
+              walletAddress: stored.publicKey,
+            });
+            const web3Auth = await web3AuthService.signInWithEmbeddedWallet();
+            console.log("[wallet-connect-trace] store:web3-auth:ok", {
+              traceId,
+              userId: web3Auth.userId,
+              walletAddress: web3Auth.walletAddress,
+              expiresAt: web3Auth.expiresAt,
+            });
+
+            const syncedExisting =
+              existing.supabaseUserId && existing.supabaseUserId === web3Auth.userId
+                ? existing
+                : { ...existing, supabaseUserId: web3Auth.userId };
+
+            let identitySyncedUser = syncedExisting;
+
+            try {
+              const identity = await identityProvisioningService.ensureIdentityForWallet({
+                walletAddress: stored.publicKey,
+                ownerUserId: web3Auth.userId,
+                displayName: syncedExisting.fullName,
+                phone: syncedExisting.phone,
+                email: syncedExisting.email,
+                preferredTag: syncedExisting.monopayTag || syncedExisting.handle,
+                existingMonopayTag: syncedExisting.monopayTag,
+                existingMetaplexCardId: syncedExisting.metaplexCardId,
+                existingMetaplexCardStatus: syncedExisting.metaplexCardStatus,
+                existingMetaplexNetwork: syncedExisting.metaplexNetwork,
+              });
+
+              identitySyncedUser = {
+                ...syncedExisting,
+                handle: identity.monopayTag,
+                monopayTag: identity.monopayTag,
+                metaplexCardId: identity.metaplexCardId,
+                metaplexCardStatus: identity.metaplexCardStatus,
+                metaplexNetwork: identity.metaplexNetwork,
+                metaplexSyncStatus: identity.metaplexSyncStatus,
+                metaplexLastSyncAt: identity.metaplexLastSyncAt,
+                metaplexLastTxSignature: identity.metaplexLastTxSignature,
+              };
+
+              console.log("[wallet-connect-trace] store:identity:ok", {
+                traceId,
+                walletAddress: identity.walletAddress,
+                monopayTag: identity.monopayTag,
+                metaplexCardId: identity.metaplexCardId,
+                source: identity.source,
+              });
+            } catch (identityError) {
+              console.warn("[wallet-connect-trace] store:identity:error", {
+                traceId,
+                message: identityError instanceof Error ? identityError.message : String(identityError),
+              });
+            }
+
+            setCurrentUser(identitySyncedUser);
+            setRegisteredUsers((prev) => prev.map((user) => (user.id === identitySyncedUser.id ? identitySyncedUser : user)));
+            void walletService.storeUserProfile(identitySyncedUser).catch((error) => {
+              console.warn("[auth-store] Failed to persist synced wallet profile:", error);
+            });
+            setPendingAuth(null);
+            setIsLocked(Boolean(identitySyncedUser.passcode));
+
+            const result = {
+              ok: true,
+              needsPasscodeSetup: !identitySyncedUser.passcode,
+              locked: Boolean(identitySyncedUser.passcode)
+            } as const;
+            console.log("[wallet-connect-trace] store:done", { traceId, result });
+
+            return result;
           }
 
-          setCurrentUser(existing);
-          setPendingAuth(null);
-          setIsLocked(Boolean(existing.passcode));
+          const walletSeed = Date.now().toString(36).slice(-6);
+          const seededWalletTag = createHandle(`mono${walletSeed}`);
 
-          return {
-            ok: true,
-            needsPasscodeSetup: !existing.passcode,
-            locked: Boolean(existing.passcode)
+          const newUser: UserProfile = {
+            id: `user_${Date.now()}`,
+            fullName: "Wallet User",
+            handle: seededWalletTag,
+            monopayTag: seededWalletTag
           };
+
+          setRegisteredUsers((prev) => [newUser, ...prev]);
+          setCurrentUser(newUser);
+          setPendingAuth(null);
+          setIsLocked(false);
+
+          const result = {
+            ok: true,
+            needsPasscodeSetup: true,
+            locked: false
+          } as const;
+          console.log("[wallet-connect-trace] store:done", { traceId, result });
+
+          return result;
+        } catch (error) {
+          console.error("[wallet-connect-trace] store:exception", {
+            traceId,
+            mode,
+            message: error instanceof Error ? error.message : String(error),
+            stack: error instanceof Error ? error.stack : undefined,
+          });
+          throw error;
         }
-
-        const newUser: UserProfile = {
-          id: `user_${Date.now()}`,
-          fullName: "Wallet User",
-          handle: createHandle("wallet")
-        };
-
-        setRegisteredUsers((prev) => [newUser, ...prev]);
-        setCurrentUser(newUser);
-        setPendingAuth(null);
-        setIsLocked(false);
-
-        return {
-          ok: true,
-          needsPasscodeSetup: true,
-          locked: false
-        };
       },
       verifyOtp: (code) => {
         if (!pendingAuth) {
@@ -234,7 +376,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           fullName: pendingAuth.fullName ?? "MonoPay User",
           phone: pendingAuth.phone,
           email: pendingAuth.email,
-          handle: createHandle(pendingAuth.fullName ?? "user")
+          handle: createHandle(pendingAuth.fullName ?? "user"),
+          monopayTag: createHandle(pendingAuth.fullName ?? "user")
         };
 
         setRegisteredUsers((prev) => [newUser, ...prev]);
@@ -291,18 +434,105 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setIsLocked(true);
       },
       signOut: () => {
+        void web3AuthService.signOut().catch((error) => {
+          console.warn("[auth-store] Supabase sign-out warning:", error);
+        });
         setCurrentUser(null);
         setPendingAuth(null);
         setIsLocked(false);
       },
-      linkWalletToUser: (walletAddress) => {
+      updateProfile: async (input) => {
         const user = currentUserRef.current;
 
         if (!user) {
           return { ok: false, error: "No active user session." };
         }
 
-        const updated = { ...user, walletAddress };
+        const nextFullName = input.fullName.trim();
+
+        if (nextFullName.length < 2) {
+          return { ok: false, error: "Full name must be at least 2 characters." };
+        }
+
+        const normalizedEmailInput = input.email ? normalizeEmail(input.email) : "";
+        const nextEmail = normalizedEmailInput || undefined;
+
+        if (nextEmail && !isValidEmail(nextEmail)) {
+          return { ok: false, error: "Enter a valid email address." };
+        }
+
+        const normalizedTag = normalizeTag(input.monopayTag || user.monopayTag || user.handle);
+
+        if (!normalizedTag || normalizedTag.replace(/^@/, "").length < 3) {
+          return { ok: false, error: "MonoPay tag must be at least 3 valid characters." };
+        }
+
+        const nextUser: UserProfile = {
+          ...user,
+          fullName: nextFullName,
+          email: nextEmail,
+          handle: normalizedTag,
+          monopayTag: normalizedTag,
+        };
+
+        if (user.walletAddress) {
+          try {
+            const identity = await identityProvisioningService.updateIdentityProfile({
+              walletAddress: user.walletAddress,
+              ownerUserId: user.supabaseUserId,
+              displayName: nextFullName,
+              phone: user.phone,
+              email: nextEmail,
+              desiredMonopayTag: normalizedTag,
+            });
+
+            nextUser.handle = identity.monopayTag;
+            nextUser.monopayTag = identity.monopayTag;
+            nextUser.metaplexCardId = identity.metaplexCardId;
+            nextUser.metaplexCardStatus = identity.metaplexCardStatus;
+            nextUser.metaplexNetwork = identity.metaplexNetwork;
+            nextUser.metaplexSyncStatus = identity.metaplexSyncStatus;
+            nextUser.metaplexLastSyncAt = identity.metaplexLastSyncAt;
+            nextUser.metaplexLastTxSignature = identity.metaplexLastTxSignature;
+          } catch (error) {
+            return {
+              ok: false,
+              error: error instanceof Error ? error.message : "Could not update wallet identity.",
+            };
+          }
+        }
+
+        setCurrentUser(nextUser);
+        setRegisteredUsers((prev) => prev.map((entry) => (entry.id === user.id ? nextUser : entry)));
+
+        void walletService.storeUserProfile(nextUser).catch((error) => {
+          console.warn("[auth-store] Failed to persist profile update:", error);
+        });
+
+        return { ok: true };
+      },
+      linkWalletToUser: (walletAddress, options) => {
+        const user = currentUserRef.current;
+
+        if (!user) {
+          return { ok: false, error: "No active user session." };
+        }
+
+        const resolvedTag = normalizeTag(options?.monopayTag || options?.handle || user.monopayTag || user.handle);
+
+        const updated = {
+          ...user,
+          walletAddress,
+          supabaseUserId: options?.supabaseUserId ?? user.supabaseUserId,
+          handle: resolvedTag || user.handle,
+          monopayTag: resolvedTag || user.monopayTag,
+          metaplexCardId: options?.metaplexCardId ?? user.metaplexCardId,
+          metaplexCardStatus: options?.metaplexCardStatus ?? user.metaplexCardStatus,
+          metaplexNetwork: options?.metaplexNetwork ?? user.metaplexNetwork,
+          metaplexSyncStatus: options?.metaplexSyncStatus ?? user.metaplexSyncStatus,
+          metaplexLastSyncAt: options?.metaplexLastSyncAt ?? user.metaplexLastSyncAt,
+          metaplexLastTxSignature: options?.metaplexLastTxSignature ?? user.metaplexLastTxSignature
+        };
 
         setCurrentUser(updated);
         setRegisteredUsers((prev) => prev.map((u) => (u.id === updated.id ? updated : u)));

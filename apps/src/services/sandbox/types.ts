@@ -4,8 +4,10 @@ export type PrivatePaymentInput = {
   fromHandle: string;
   toHandle: string;
   amountUsd: number;
+  amountSol?: number;
   memo?: string;
   assetSymbol: string;
+  senderSecretKeyBytes?: number[];
 };
 
 export type PrivatePaymentResult = {
@@ -13,6 +15,11 @@ export type PrivatePaymentResult = {
   explorerUrl: string;
   network: SupportedNetwork;
   createdAt: string;
+  rail?: "sol_public" | "spl_public" | "inco_confidential";
+  assetSymbol?: string;
+  assetMint?: string;
+  amountUi?: number;
+  amountRaw?: string;
 };
 
 export interface PaymentAdapter {
@@ -63,6 +70,8 @@ export type ProfilePlugin = {
 export type IdCardRecord = ImmutableCardFields & {
   status: CardStatus;
   deactivatedAt?: string;
+  lastSyncAt?: string;
+  lastTxSignature?: string;
   plugins: {
     profile: ProfilePlugin;
   };

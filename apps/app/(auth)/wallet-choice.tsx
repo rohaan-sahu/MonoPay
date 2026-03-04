@@ -4,6 +4,8 @@ import { Feather } from "@expo/vector-icons";
 import { ActivityIndicator, Pressable, ScrollView, Text, View } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { cheksAuthScreen as s } from "@mpay/styles/cheksAuthScreen";
+import { identityProvisioningService } from "@mpay/services/identity-provisioning-service";
+import { web3AuthService } from "@mpay/services/web3-auth-service";
 import { useAuthStore } from "@mpay/stores/auth-store";
 import { walletService } from "@mpay/services/wallet-service";
 
@@ -24,7 +26,7 @@ export default function WalletChoiceScreen() {
     setError("");
 
     if (option === "import") {
-      setError("Import is not yet available. Please create a new wallet.");
+      router.push("/(auth)/wallet-import");
       return;
     }
 
@@ -34,7 +36,42 @@ export default function WalletChoiceScreen() {
       console.log("[wallet-flow] create:start");
       const wallet = await walletService.createWallet();
       console.log("[wallet-flow] create:ok", { publicKey: wallet.publicKey, mode: wallet.mode });
-      const result = linkWalletToUser(wallet.publicKey);
+      const web3Auth = await web3AuthService.signInWithEmbeddedWallet();
+      console.log("[wallet-flow] web3-auth:ok", { userId: web3Auth.userId });
+
+      if (web3Auth.walletAddress !== wallet.publicKey) {
+        throw new Error("Wallet mismatch after Web3 authentication.");
+      }
+
+      const identity = await identityProvisioningService.ensureIdentityForWallet({
+        walletAddress: wallet.publicKey,
+        ownerUserId: web3Auth.userId,
+        displayName: currentUser.fullName,
+        phone: currentUser.phone,
+        email: currentUser.email,
+        preferredTag: currentUser.monopayTag || currentUser.handle,
+        existingMonopayTag: currentUser.monopayTag,
+        existingMetaplexCardId: currentUser.metaplexCardId,
+        existingMetaplexCardStatus: currentUser.metaplexCardStatus,
+        existingMetaplexNetwork: currentUser.metaplexNetwork,
+      });
+      console.log("[wallet-flow] identity:ok", {
+        walletAddress: identity.walletAddress,
+        monopayTag: identity.monopayTag,
+        metaplexCardId: identity.metaplexCardId,
+        source: identity.source,
+      });
+
+      const result = linkWalletToUser(wallet.publicKey, {
+        supabaseUserId: web3Auth.userId,
+        monopayTag: identity.monopayTag,
+        metaplexCardId: identity.metaplexCardId,
+        metaplexCardStatus: identity.metaplexCardStatus,
+        metaplexNetwork: identity.metaplexNetwork,
+        metaplexSyncStatus: identity.metaplexSyncStatus,
+        metaplexLastSyncAt: identity.metaplexLastSyncAt,
+        metaplexLastTxSignature: identity.metaplexLastTxSignature,
+      });
 
       if (!result.ok) {
         setError(result.error ?? "Failed to link wallet.");
@@ -42,7 +79,7 @@ export default function WalletChoiceScreen() {
       }
 
       console.log("[wallet-flow] link:ok");
-      router.replace("/(auth)/setup-passcode");
+      router.replace("/(auth)/wallet-backup");
     } catch (error) {
       const message = error instanceof Error ? error.message : "Failed to create wallet. Please try again.";
       console.error("[wallet-flow] create:error", error);

@@ -1,7 +1,7 @@
 import { Tabs } from "expo-router";
 import { Feather } from "@expo/vector-icons";
 import { StyleSheet, Text, View } from "react-native";
-import { palette } from "@mpay/styles/theme";
+import { palette, fontWeight } from "@mpay/styles/theme";
 
 type TabItemIconProps = {
   iconName: keyof typeof Feather.glyphMap;
@@ -10,13 +10,18 @@ type TabItemIconProps = {
 };
 
 function TabItemIcon({ iconName, label, focused }: TabItemIconProps) {
-  const color = focused ? palette.textPrimary : palette.textMuted;
-
   return (
     <View style={styles.item}>
-      <Feather name={iconName} size={20} color={color} />
-      <Text style={[styles.label, { color }]}>{label}</Text>
-      {focused ? <View style={styles.dot} /> : <View style={styles.dotSpacer} />}
+      {focused ? (
+        <View style={styles.activePill}>
+          <Feather name={iconName} size={20} color={palette.white} />
+        </View>
+      ) : (
+        <Feather name={iconName} size={20} color={palette.textMuted} />
+      )}
+      <Text style={[styles.label, focused ? styles.labelActive : styles.labelInactive]}>
+        {label}
+      </Text>
     </View>
   );
 }
@@ -29,41 +34,49 @@ export default function TabsLayout() {
         tabBarStyle: {
           backgroundColor: palette.surfaceLight,
           borderTopColor: palette.borderLight,
-          height: 84,
+          height: 88,
           paddingTop: 8,
-          paddingBottom: 10
+          paddingBottom: 10,
         },
         tabBarShowLabel: false,
         tabBarActiveTintColor: palette.textPrimary,
-        tabBarInactiveTintColor: palette.textMuted
+        tabBarInactiveTintColor: palette.textMuted,
       }}
     >
       <Tabs.Screen
         name="home"
         options={{
           title: "Home",
-          tabBarIcon: ({ focused }) => <TabItemIcon iconName="home" label="Home" focused={focused} />
+          tabBarIcon: ({ focused }) => (
+            <TabItemIcon iconName="home" label="Home" focused={focused} />
+          ),
         }}
       />
       <Tabs.Screen
         name="scan"
         options={{
-          title: "Scan",
-          tabBarIcon: ({ focused }) => <TabItemIcon iconName="camera" label="Scan" focused={focused} />
+          title: "Pay",
+          tabBarIcon: ({ focused }) => (
+            <TabItemIcon iconName="credit-card" label="Pay" focused={focused} />
+          ),
         }}
       />
       <Tabs.Screen
         name="chat"
         options={{
-          title: "Chat",
-          tabBarIcon: ({ focused }) => <TabItemIcon iconName="message-circle" label="Chat" focused={focused} />
+          title: "Transactions",
+          tabBarIcon: ({ focused }) => (
+            <TabItemIcon iconName="trending-up" label="Transactions" focused={focused} />
+          ),
         }}
       />
       <Tabs.Screen
         name="profile"
         options={{
           title: "Profile",
-          tabBarIcon: ({ focused }) => <TabItemIcon iconName="user" label="Profile" focused={focused} />
+          tabBarIcon: ({ focused }) => (
+            <TabItemIcon iconName="user" label="Profile" focused={focused} />
+          ),
         }}
       />
     </Tabs>
@@ -74,24 +87,26 @@ const styles = StyleSheet.create({
   item: {
     alignItems: "center",
     justifyContent: "center",
-    minWidth: 64,
-    paddingTop: 2
+    minWidth: 72,
+    paddingTop: 2,
+    gap: 4,
+  },
+  activePill: {
+    backgroundColor: palette.textPrimary,
+    paddingHorizontal: 20,
+    paddingVertical: 8,
+    borderRadius: 20,
+    alignItems: "center",
+    justifyContent: "center",
   },
   label: {
-    marginTop: 3,
-    fontSize: 10,
-    fontWeight: "600"
+    fontSize: 11,
+    fontWeight: fontWeight.semibold as "600",
   },
-  dot: {
-    marginTop: 3,
-    width: 4,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: palette.textPrimary
+  labelActive: {
+    color: palette.textPrimary,
   },
-  dotSpacer: {
-    marginTop: 3,
-    width: 4,
-    height: 4
-  }
+  labelInactive: {
+    color: palette.textMuted,
+  },
 });

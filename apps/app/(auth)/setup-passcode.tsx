@@ -94,19 +94,19 @@ export default function SetupPasscodeScreen() {
             </Text>
             <Text style={[s.cardSubtitle, { marginTop: 10, fontSize: 14 }]}>
               {step === "create"
-                ? "Set a 6-digit passcode to unlock MonoPay."
+                ? "Set a 4-digit passcode to unlock MonoPay."
                 : "Re-enter your passcode to confirm."}
             </Text>
           </View>
 
           {/* PIN Dots */}
-          <View style={{ flexDirection: "row", justifyContent: "center", gap: 14, marginBottom: 8 }}>
+          <View style={{ flexDirection: "row", justifyContent: "flex-start", gap: 14, marginTop: 4, marginBottom: 8 }}>
             {Array.from({ length: PIN_LENGTH }).map((_, i) => (
               <View
                 key={i}
                 style={{
-                  width: 48,
-                  height: 52,
+                  width: 56,
+                  height: 56,
                   borderRadius: 12,
                   borderWidth: 1,
                   borderColor: i < currentCode.length ? "#171717" : "#e5e5e5",
@@ -123,27 +123,30 @@ export default function SetupPasscodeScreen() {
           </View>
 
           {!!error && (
-            <Text style={{ color: "#dc2626", fontSize: 13, textAlign: "center", marginTop: 8 }}>
+            <Text style={{ color: "#dc2626", fontSize: 13, textAlign: "left", marginTop: 8 }}>
               {error}
             </Text>
           )}
 
+          {/* Spacer pushes numpad toward bottom */}
+          <View style={{ flex: 1 }} />
+
           {/* Numpad */}
-          <View style={{ flex: 1, justifyContent: "center", paddingHorizontal: 16 }}>
+          <View style={{ paddingHorizontal: 8, marginBottom: 12 }}>
             {[["1", "2", "3"], ["4", "5", "6"], ["7", "8", "9"], ["", "0", "del"]].map((row, ri) => (
-              <View key={ri} style={{ flexDirection: "row", justifyContent: "space-around", marginBottom: 20 }}>
+              <View key={ri} style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 24 }}>
                 {row.map((key, ki) => {
                   if (key === "") {
-                    return <View key={ki} style={{ width: 72, height: 72 }} />;
+                    return <View key={ki} style={{ width: 80, height: 56 }} />;
                   }
                   if (key === "del") {
                     return (
                       <Pressable
                         key={ki}
                         onPress={handleDelete}
-                        style={{ width: 72, height: 72, alignItems: "center", justifyContent: "center" }}
+                        style={{ width: 80, height: 56, alignItems: "center", justifyContent: "center" }}
                       >
-                        <Feather name="delete" size={24} color="#171717" />
+                        <Feather name="chevron-left" size={28} color="#dc2626" />
                       </Pressable>
                     );
                   }
@@ -151,9 +154,9 @@ export default function SetupPasscodeScreen() {
                     <Pressable
                       key={ki}
                       onPress={() => handlePress(key)}
-                      style={{ width: 72, height: 72, alignItems: "center", justifyContent: "center" }}
+                      style={{ width: 80, height: 56, alignItems: "center", justifyContent: "center" }}
                     >
-                      <Text style={{ fontSize: 28, fontWeight: "600", color: "#171717" }}>{key}</Text>
+                      <Text style={{ fontSize: 28, fontWeight: "700", color: "#171717" }}>{key}</Text>
                     </Pressable>
                   );
                 })}

@@ -1,5 +1,5 @@
 import { router } from "expo-router";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Feather } from "@expo/vector-icons";
 import { ActivityIndicator, Pressable, ScrollView, Text, TextInput, View } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
@@ -17,6 +17,7 @@ export default function SignInScreen() {
   const [email, setEmail] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
+  const walletConnectInFlight = useRef(false);
 
   const handleSignIn = () => {
     setError("");
@@ -40,11 +41,25 @@ export default function SignInScreen() {
   };
 
   const handleWalletConnect = async () => {
+    if (walletConnectInFlight.current) {
+      return;
+    }
+
+    walletConnectInFlight.current = true;
+    const traceId = `wc-${Date.now().toString(36)}`;
     setError("");
     setIsLoading(true);
+    console.log("[wallet-connect-trace] ui:start", { traceId, screen: "sign-in" });
 
     try {
       const result = await connectWallet("sign-in");
+      console.log("[wallet-connect-trace] ui:result", {
+        traceId,
+        ok: result.ok,
+        locked: result.locked,
+        needsPasscodeSetup: result.needsPasscodeSetup,
+        error: result.error,
+      });
 
       if (!result.ok) {
         setError(result.error ?? "Wallet connection failed.");
@@ -58,10 +73,17 @@ export default function SignInScreen() {
       } else {
         router.replace("/(tabs)/home");
       }
-    } catch {
-      setError("Wallet connection failed. Please try again.");
+    } catch (error) {
+      console.error("[wallet-connect-trace] ui:exception", {
+        traceId,
+        message: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+      });
+      setError(error instanceof Error ? error.message : "Wallet connection failed. Please try again.");
     } finally {
+      console.log("[wallet-connect-trace] ui:done", { traceId });
       setIsLoading(false);
+      walletConnectInFlight.current = false;
     }
   };
 
@@ -150,7 +172,11 @@ export default function SignInScreen() {
                 </View>
 
                 {/* Wallet Connect */}
-                <Pressable style={s.walletConnectButton} onPress={handleWalletConnect}>
+                <Pressable
+                  style={[s.walletConnectButton, isLoading && { opacity: 0.6 }]}
+                  onPress={handleWalletConnect}
+                  disabled={isLoading}
+                >
                   <Feather name="link" size={18} color="#171717" />
                   <Text style={s.walletConnectText}>Connect Wallet</Text>
                 </Pressable>

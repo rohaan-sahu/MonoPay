@@ -1,183 +1,177 @@
-# MonoPay Execution Plan (Wallet + Metaplex + Inco)
+# MonoPay Implementation Checklist (Wallet + Metaplex + Inco)
 
-Last updated: March 3, 2026
+Last updated: March 4, 2026
 
-## Goal
-Build MonoPay as a wallet-first payments app on Solana with:
-1. Wallet-first signup/signin (OTP optional fallback).
-2. Automatic Metaplex ID card lifecycle tied to wallet identity.
-3. Current sandbox Inco-encrypted payment trigger upgraded later to a confidential rail.
+## North Star
+MonoPay should deliver fast Solana payments with a private-by-default path, wallet-first onboarding, and a profile identity layer users can pay to by handle.
 
-## Current State (What already works)
-- SDK sandbox route exists: `apps/app/sandbox.tsx`.
-- Inco payment adapter exists and is live in sandbox:
-  - `apps/src/services/sandbox/payment-adapter.ts`
-  - Uses Solana transfer + Inco-encrypted memo via remote endpoint.
-- Supabase account-linking adapter exists:
-  - `apps/src/services/sandbox/account-linking-adapter.ts`
-  - Supports `email_only` and `email_phone`.
-- Metaplex ID card adapter exists:
-  - `apps/src/services/sandbox/id-card-adapter.ts`
-  - Supports create, update plugin field, immutable field block, deactivate (burn).
+## Decisions Locked (For now)
+- Keep `Supabase` as backend/auth/session source of truth.
+- Do not migrate to Firebase/Firestore now.
+- Keep current wallet service and improve it incrementally.
+- Keep Inco integration in sandbox while we harden wallet + identity in the real app.
+- Use Metaplex Core program (no custom program deployment required for current scope).
+- Evaluate Turnkey as a future wallet infrastructure option behind an adapter, not as a disruptive rewrite now.
 
-## Product Direction (Agreed)
-1. Primary auth should be wallet-based.
-2. Email/phone OTP should be optional fallback, not required.
-3. Google/Apple auth buttons can be removed from auth screens.
-4. After wallet auth, create or fetch Metaplex ID card automatically.
-5. Show the ID card state in Profile.
-6. Keep Inco payment rail in sandbox now; later migrate from plain SOL transfer flow to a confidential-token rail.
+## Why Not Firebase Right Now
+- Current architecture already uses Supabase auth/session flows and Postgres-backed app state.
+- We need relational constraints (wallet-to-user, tag uniqueness, identity mappings) plus predictable RLS.
+- A migration now would add risk with little product upside for this phase.
+- Revisit only if team/process constraints force it.
 
-## Architecture Plan
+## Turnkey Recommendation
+- Recommended path: keep current wallet service for now, add a `WalletProviderAdapter` boundary, and make Turnkey a pluggable provider later.
+- Trigger to adopt Turnkey aggressively:
+  - Need policy-based signing / org controls / managed key lifecycle.
+  - Need multi-device passkey-centric wallet UX at scale.
+  - Need stronger key custody guarantees than our local embedded model.
 
-### 1) Wallet Auth Layer
-Implement `WalletAuthService` with two modes:
-- Embedded wallet mode:
-  - Create wallet (generate keypair).
-  - Import wallet (private key / seed input).
-  - Persist secrets in secure storage (device keychain/secure store).
-- External wallet-connect mode:
-  - Connect to Solflare/Phantom via deep link / wallet protocol.
-  - Sign challenge for authentication.
+## End-to-End Target Flow
+1. User opens onboarding.
+2. User chooses `Create wallet` or `Import existing wallet`.
+3. Wallet is created/imported and user secures passcode.
+4. Wallet signs web3 auth challenge; app session is established.
+5. App ensures profile row + MonoPay tag + Metaplex ID card mapping.
+6. User enters app; Home shows live balances.
+7. Pay screen supports pay-by-address and pay-by-username/tag.
 
-Auth flow:
-1. App requests nonce/challenge from backend.
-2. Wallet signs challenge.
-3. Backend verifies signature and mints app session.
-4. App stores session token and wallet pubkey.
+## Current State Snapshot
+- [x] Wallet create flow works and survives app restart.
+- [x] Wallet sign-in flow routes to lock when passcode already exists.
+- [x] Supabase web3 sign-in flow works with valid SIWS URL allowlist.
+- [x] Sandbox Inco payment trigger works and logs tx links.
+- [x] Sandbox Metaplex lifecycle works (create/update/immutable guard/deactivate).
+- [x] Live wallet balances are surfaced in app UI.
+- [~] Wallet export exists; backup UX is improving.
+- [ ] Real app automatic Metaplex provisioning is not fully wired yet.
+- [ ] Pay-by-username/tag is not wired yet.
 
-### 2) Identity Layer (Metaplex ID Card)
-Implement `IdCardProvisioningService`:
-- `ensureIdCardForWallet(walletPubkey)`:
-  - Check mapping in DB (`wallet_pubkey -> card_id`).
-  - If missing, create asset via Metaplex Core.
-  - Store mapping and return card record.
-- Enforce immutable fields:
-  - `cardId`, `owner`, `createdAt`, `network`.
-- Mutable profile plugin fields:
-  - `displayName`, `avatarUrl`, `paymentPointer`, `bio`.
+## Implementation Checklist
 
-### 3) Payment Layer (Inco Path)
-Phase now:
-- Keep current sandbox adapter (works with remote encryption endpoint).
-- Continue to log tx links and payload outcomes in sandbox.
-
-Phase later:
-- Introduce a new payment adapter for confidential-token rail.
-- Keep adapter interface stable so UI does not change.
-
-## Implementation Order (Execution Sequence)
-
-### Phase 1: Wallet-First Foundation
-1. Add `WalletAuthService` interfaces + concrete implementation.
-2. Wire onboarding buttons:
-   - `Create wallet`
-   - `Add existing wallet`
-   - `Connect wallet`
-3. Remove Google/Apple from auth UI.
-4. Keep OTP route as secondary fallback ("Use email instead").
+### Phase 1: Wallet + Auth Hardening
+- [x] Single-flight wallet sign-in (avoid duplicate concurrent connect attempts).
+- [x] Secure storage first strategy for auth persistence.
+- [x] Actionable web3 auth error messages and trace logs.
+- [ ] Add guarded retry policy around transient auth network failures.
+- [ ] Add explicit offline state message for wallet sign-in attempts.
 
 Exit criteria:
-- User can complete signup/signin with wallet only.
-- Session persists after app restart.
+- [ ] Sign-in is deterministic (no accidental duplicate requests).
+- [ ] Errors are user-actionable (config vs network vs wallet mismatch).
 
-### Phase 2: Auto-Provision Metaplex Card
-1. On successful wallet auth, call `ensureIdCardForWallet`.
-2. Save `wallet -> cardId` mapping in DB.
-3. Profile reads and displays card data/state.
-4. Expose update/deactivate actions where needed.
-
-Exit criteria:
-- First wallet login auto-creates card.
-- Repeat login reuses existing card.
-- Immutable field mutation attempts fail with clear errors.
-
-### Phase 3: Separate Metaplex Program Test Harness
-1. Add script(s) under `apps/scripts/`:
-   - create card
-   - update mutable field
-   - attempt immutable update (expect failure)
-   - deactivate/burn
-2. Print signatures and explorer links.
-3. Store runbook in docs.
+### Phase 2: Wallet Backup/Recovery Safety
+- [x] Wallet export screen exists.
+- [ ] Add reliable clipboard copy + secure confirm UX on export.
+- [ ] Add recovery phrase flow for newly created wallets (not only raw secret bytes).
+- [ ] Add mandatory acknowledgment gates before entering home on first wallet creation.
+- [ ] Add clear docs in app: restore wallet on new device.
 
 Exit criteria:
-- Script run confirms lifecycle end-to-end independent of UI.
+- [ ] User can safely recover wallet on a fresh install/device.
 
-### Phase 4: Inco Rail Upgrade
-1. Keep current payment working while building new rail adapter.
-2. Swap adapter implementation only (no screen rewrite).
-3. Validate payload privacy model and settlement semantics.
+### Phase 3: Metaplex Identity in Real App
+- [x] Create `IdentityProvisioningService` for production app path.
+- [ ] Implement `ensureIdentityForWallet(walletPubkey)`:
+  - [x] Ensure profile record exists.
+  - [x] Ensure unique MonoPay tag exists (or generate one).
+  - [x] Ensure Metaplex ID card exists for wallet.
+  - [x] Persist mapping in Supabase (with local fallback if tables are not present).
+- [x] Trigger provisioning right after wallet create/import success.
+- [x] Trigger reconciliation on sign-in if mapping is missing/inconsistent.
+- [x] Show card data/state on Profile page.
+- [ ] Keep immutable fields locked:
+  - [ ] `owner`
+  - [ ] `cardId`
+  - [ ] `createdAt`
+  - [ ] `network`
+- [ ] Mutable profile/plugin fields:
+  - [ ] `displayName`
+  - [ ] `avatarUrl`
+  - [ ] `paymentPointer`
+  - [ ] `bio`
+  - [ ] `monopayTag`
 
 Exit criteria:
-- Payment route no longer depends on plain SOL transfer semantics.
-- Sandbox and profile payment activity continue to work through the same interface.
+- [ ] Wallet onboarding auto-creates/reuses Metaplex identity consistently.
+- [ ] Profile reflects on-chain + mapped identity state correctly.
 
-## Metaplex Program Notes (Important)
+### Phase 4: Pay by Username (MonoPay Tag)
+- [ ] Add username/tag resolver service (`@handle -> wallet`).
+- [ ] Add pay input mode switch: address or tag.
+- [ ] Add strict normalization + uniqueness rules for tags.
+- [ ] Prevent payments to suspended/deactivated tags.
+- [ ] Log resolution details for support/debug.
 
-### Do we need to deploy a program?
-Short answer: usually no.
+Exit criteria:
+- [ ] User can pay by tag with same reliability as direct address pay.
 
-Why:
-- For current ID card lifecycle, we are using Metaplex Core client SDK against the existing Core program on Solana cluster.
-- You do not need to deploy your own program unless you require custom on-chain logic that Metaplex Core cannot express.
+### Phase 5: Inco Path (From Sandbox to Main Flow)
+- [x] Sandbox payment trigger logs tx link.
+- [ ] Define production payment adapter contract:
+  - [ ] `preparePayment(...)`
+  - [ ] `submitPayment(...)`
+  - [ ] `getReceipt(...)`
+- [ ] Keep SOL transfer fallback adapter while Inco rail is hardened.
+- [ ] Add Inco confidential-token adapter implementation.
+- [ ] Wire receipt/audit metadata into app activity feed.
 
-When we would deploy:
-- Custom rules/authorization beyond plugin model.
-- New account/state model not representable with existing Core constructs.
-- Custom constraints requiring our own Solana program.
+Exit criteria:
+- [ ] Main app payment path can switch adapters without screen rewrite.
 
-### How we verify Metaplex works
-1. Create asset transaction confirmed on devnet.
-2. Fetch asset from chain after create/update.
-3. Immutable write attempt fails by app rule (and optionally by program/plugin policy when enforced).
-4. Burn/deactivate transaction confirmed and `safeFetch` shows asset is gone.
+### Phase 6: External Wallet Connect (Phantom/Solflare)
+- [ ] Deep-link connect flow for real devices.
+- [ ] Signature-based auth handshake parity with embedded wallet auth.
+- [ ] Distinct UX for simulator limitations.
+- [ ] Test matrix on iOS physical device.
 
-## Wallet Testing Strategy
+Exit criteria:
+- [ ] User can connect external wallet and authenticate reliably.
 
-### Simulator
-- Use for embedded wallet flows (create/import).
-- Good for app state, auth/session, and card provisioning tests.
+### Phase 7: Auth UI Rationalization
+- [ ] Remove social buttons from wallet-first auth screens (if still present).
+- [ ] Keep email/phone OTP fallback path available.
+- [ ] Ensure copy/design stays aligned with Cheks-style UI decisions.
 
-### Physical iPhone
-- Use for external wallet connection testing (Solflare/Phantom).
-- Deep-link wallet flows are far more realistic on a real device.
+Exit criteria:
+- [ ] Wallet-first primary UX is visually and behaviorally consistent.
 
-## Backend + Env Requirements
+## Supabase Data Checklist
+- [ ] `profiles` row includes `wallet_address` and `monopay_tag`.
+- [ ] `monopay_tags` uniqueness is enforced server-side.
+- [ ] `wallet_identities` table maps wallet -> metaplex asset/card id.
+- [ ] RLS policies enforce wallet ownership for updates.
+- [ ] Minimal admin/recovery policies for support operations.
 
-Current required envs already in `apps/.env`:
-- Supabase URL + anon key.
-- Solana RPC + signer key.
-- Handle directory JSON + default recipient/owner.
-- Inco encryption endpoint.
-- Metaplex metadata URI.
+## Metaplex Test Harness Checklist
+- [ ] Add scripts under `apps/scripts/`:
+  - [ ] Create card
+  - [ ] Update mutable field
+  - [ ] Attempt immutable update (expect failure)
+  - [ ] Deactivate/close
+- [ ] Print tx signatures + explorer links.
+- [ ] Add runbook steps for devnet verification.
 
-Additional envs needed for wallet-first auth productionization:
-- `MONOPAY_AUTH_CHALLENGE_ENDPOINT`
-- `MONOPAY_AUTH_VERIFY_ENDPOINT`
-- `MONOPAY_SESSION_SIGNING_KEY` (backend secret)
-- Optional wallet connect project keys (depending on chosen provider).
+## Environment Checklist
+- [x] Supabase URL/anon key configured.
+- [x] Solana RPC + signer key configured.
+- [x] Inco sandbox endpoint configured.
+- [x] Base metadata URI configured.
+- [ ] Add explicit SIWS allowed URI list docs for each environment.
+- [ ] Add production/staging env templates for wallet + identity + payments.
 
-## Risks and Controls
-- Risk: external wallet UX instability on simulator.
-  - Control: treat simulator as embedded-wallet-only test bed.
-- Risk: coupling auth and chain writes can cause partial failures.
-  - Control: idempotent `ensureIdCardForWallet` with retries and reconciliation job.
-- Risk: payment rail migration breaks UI.
-  - Control: preserve adapter contract and swap implementation only.
+## QA Checklist (Manual)
+- [ ] Create wallet -> secure passcode -> sign in -> lock screen -> unlock.
+- [ ] Kill app -> relaunch -> connect wallet -> unlock works.
+- [ ] Import wallet (valid) succeeds.
+- [ ] Import wallet (invalid key/mnemonic) fails with clear message.
+- [ ] First auth provisions Metaplex identity + MonoPay tag.
+- [ ] Profile shows mapped card and immutable/mutable field behavior.
+- [ ] Pay by address works.
+- [ ] Pay by tag works.
+- [ ] Inco adapter path logs receipt and explorer link.
 
-## Milestone Checklist
-- [ ] Wallet-only signup/signin works end-to-end.
-- [ ] OTP fallback remains available but optional.
-- [ ] Google/Apple removed from auth screens.
-- [ ] Metaplex card auto-provisions after wallet auth.
-- [ ] Profile displays card metadata/state.
-- [ ] Standalone Metaplex lifecycle script passes on devnet.
-- [ ] Inco payment sandbox remains healthy during migration.
-- [ ] Confidential rail design doc approved before implementation.
-
-## Immediate Next Step (When implementation starts)
-Start Phase 1 only:
-1. Build wallet service contract + storage.
-2. Wire onboarding/auth screens to wallet actions.
-3. Keep sandbox integrations untouched until Phase 1 is stable.
+## Immediate Execution Order From Here
+1. Phase 3: Wire real-app Metaplex identity auto-provisioning + tag creation.
+2. Phase 4: Ship pay-by-username resolver and payment entry flow.
+3. Phase 5: Promote Inco from sandbox-only to adapter in main payment path.
+4. Phase 2: Finalize backup/recovery UX (clipboard + phrase + restore confidence).

@@ -10,7 +10,8 @@ web-build/
 .env.example
 .vercel
 .vscode
-
+plan.md
+payments.md
 
 npm-debug.*
 *.jks

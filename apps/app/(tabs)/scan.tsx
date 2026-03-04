@@ -1,26 +1,65 @@
-import { Pressable, Text, View } from "react-native";
+import { Pressable, Text, View, StyleSheet, Platform } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { GradientBackdrop } from "@mpay/components/GradientBackdrop";
-import { scanScreen as s } from "@mpay/styles/scanScreen";
+import { Feather } from "@expo/vector-icons";
+import { router } from "expo-router";
 
-export default function ScanPage() {
+const displayFont = Platform.select({
+  ios: "Bricolage Grotesque",
+  android: "sans-serif-light",
+  default: "sans-serif",
+});
+
+const bodyFont = Platform.select({
+  ios: "Inter",
+  android: "sans-serif",
+  default: "sans-serif",
+});
+
+export default function PayScreen() {
   return (
-    <SafeAreaView style={s.page} edges={["top"]}>
-      <GradientBackdrop />
-
-      <Text style={s.heading}>Scan to Pay</Text>
-      <Text style={s.subtitle}>Point your camera at a MonoPay QR code to pay merchants or friends instantly.</Text>
-
-      <View style={s.scanBox}>
-        <View style={s.scanFrame}>
-          <Text style={s.scanIcon}>Q</Text>
-          <Text style={s.scanHint}>Camera integration starts next. This is the scan frame shell.</Text>
-        </View>
+    <SafeAreaView style={ps.page} edges={["top"]}>
+      <View style={ps.content}>
+        <Text style={ps.heading}>Pay</Text>
+        <Text style={ps.subtitle}>Send crypto to anyone, instantly.</Text>
+        <Pressable style={ps.sendButton} onPress={() => router.push("/send/amount")}>
+          <Feather name="arrow-up-right" size={20} color="#fff" />
+          <Text style={ps.sendButtonText}>Send Payment</Text>
+        </Pressable>
       </View>
-
-      <Pressable style={s.actionButton}>
-        <Text style={s.actionButtonText}>Open camera</Text>
-      </Pressable>
     </SafeAreaView>
   );
 }
+
+const ps = StyleSheet.create({
+  page: { flex: 1, backgroundColor: "#fdfdfd" },
+  content: { flex: 1, paddingHorizontal: 24, paddingTop: 40 },
+  heading: {
+    color: "#171717",
+    fontSize: 32,
+    letterSpacing: -0.8,
+    fontWeight: "300",
+    fontFamily: displayFont,
+    marginBottom: 8,
+  },
+  subtitle: {
+    color: "#9ca3af",
+    fontSize: 15,
+    fontFamily: bodyFont,
+    marginBottom: 32,
+  },
+  sendButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 10,
+    height: 56,
+    borderRadius: 18,
+    backgroundColor: "#111111",
+  },
+  sendButtonText: {
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: "600",
+    fontFamily: bodyFont,
+  },
+});

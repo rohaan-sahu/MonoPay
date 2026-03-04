@@ -2,6 +2,8 @@ import "react-native-get-random-values";
 import { Keypair } from "@solana/web3.js";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as SecureStore from "expo-secure-store";
+import { parseWalletImportInput } from "@mpay/services/wallet-import-parser";
+import { generateRecoveryPhrase, normalizeRecoveryPhrase } from "@mpay/services/wallet-recovery-phrase";
 
 type WalletMode = "embedded" | "imported";
 
@@ -19,15 +21,31 @@ type StoredUserProfile = {
   phone?: string;
   email?: string;
   walletAddress?: string;
+  supabaseUserId?: string;
   handle: string;
+  monopayTag?: string;
+  metaplexCardId?: string;
+  metaplexCardStatus?: "active" | "deactivated";
+  metaplexNetwork?: "solana-devnet" | "solana-testnet" | "solana-mainnet";
+  metaplexSyncStatus?: "synced" | "unknown" | "failed";
+  metaplexLastSyncAt?: string;
+  metaplexLastTxSignature?: string;
   passcode?: string;
 };
 
 interface WalletService {
   createWallet(): Promise<WalletCreateResult>;
   importWallet(secretKeyBytes: number[]): Promise<WalletCreateResult>;
+  parseAndImportWallet(
+    rawInput: string,
+    options?: { passphrase?: string; derivationPath?: string; forceMnemonic?: boolean }
+  ): Promise<{ wallet: WalletCreateResult; source: "private_key_bytes" | "private_key_base58" | "mnemonic"; derivationPath?: string }>;
   hasStoredWallet(): Promise<boolean>;
   getStoredWallet(): Promise<WalletMeta | null>;
+  getStoredRecoveryPhrase(): Promise<string | null>;
+  isRecoveryBackedUp(): Promise<boolean>;
+  markRecoveryBackedUp(): Promise<void>;
+  exportSecretKeyBytes(): Promise<number[] | null>;
   getKeypair(): Promise<Keypair | null>;
   clearWallet(): Promise<void>;
   storeUserProfile(profile: StoredUserProfile): Promise<void>;
@@ -37,6 +55,8 @@ interface WalletService {
 const KEY_SECRET = "MPAY_WALLET_SECRET";
 const KEY_META = "MPAY_WALLET_META";
 const KEY_PROFILE = "MPAY_WALLET_PROFILE";
+const KEY_RECOVERY_PHRASE = "MPAY_WALLET_RECOVERY_PHRASE";
+const KEY_RECOVERY_BACKED_UP = "MPAY_WALLET_RECOVERY_BACKED_UP";
 const FALLBACK_PREFIX = "MPAY_FALLBACK_";
 
 class SecureStoreWalletService implements WalletService {
@@ -181,7 +201,11 @@ class SecureStoreWalletService implements WalletService {
     }
   }
 
-  private async storeKeypair(keypair: Keypair, mode: WalletMode): Promise<WalletMeta> {
+  private async storeKeypair(
+    keypair: Keypair,
+    mode: WalletMode,
+    options?: { recoveryPhrase?: string | null; backupConfirmed?: boolean }
+  ): Promise<WalletMeta> {
     const secretBytes = Array.from(keypair.secretKey);
     const meta: WalletMeta = {
       publicKey: keypair.publicKey.toBase58(),
@@ -191,6 +215,13 @@ class SecureStoreWalletService implements WalletService {
 
     await this.setItem(KEY_SECRET, JSON.stringify(secretBytes));
     await this.setItem(KEY_META, JSON.stringify(meta));
+    await this.setItem(KEY_RECOVERY_BACKED_UP, JSON.stringify(Boolean(options?.backupConfirmed)));
+
+    if (options?.recoveryPhrase) {
+      await this.setItem(KEY_RECOVERY_PHRASE, normalizeRecoveryPhrase(options.recoveryPhrase));
+    } else {
+      await this.deleteItem(KEY_RECOVERY_PHRASE);
+    }
 
     return meta;
   }
@@ -198,8 +229,10 @@ class SecureStoreWalletService implements WalletService {
   async createWallet(): Promise<WalletCreateResult> {
     try {
       await this.ensureRandomValues();
-      const keypair = Keypair.generate();
-      return this.storeKeypair(keypair, "embedded");
+      const recoveryPhrase = generateRecoveryPhrase(12);
+      const parsed = parseWalletImportInput(recoveryPhrase, { forceMnemonic: true });
+      const keypair = Keypair.fromSecretKey(Uint8Array.from(parsed.secretKeyBytes));
+      return this.storeKeypair(keypair, "embedded", { recoveryPhrase, backupConfirmed: false });
     } catch (error) {
       const message = error instanceof Error ? error.message : "Unknown wallet generation error.";
       throw new Error(`Wallet creation failed: ${message}`);
@@ -213,11 +246,30 @@ class SecureStoreWalletService implements WalletService {
       }
 
       const keypair = Keypair.fromSecretKey(Uint8Array.from(secretKeyBytes));
-      return this.storeKeypair(keypair, "imported");
+      return this.storeKeypair(keypair, "imported", { backupConfirmed: true, recoveryPhrase: null });
     } catch (error) {
       const message = error instanceof Error ? error.message : "Unknown wallet import error.";
       throw new Error(`Wallet import failed: ${message}`);
     }
+  }
+
+  async parseAndImportWallet(
+    rawInput: string,
+    options?: { passphrase?: string; derivationPath?: string; forceMnemonic?: boolean }
+  ) {
+    const parsed = parseWalletImportInput(rawInput, options);
+    const wallet = await this.importWallet(parsed.secretKeyBytes);
+
+    if (parsed.source === "mnemonic") {
+      await this.setItem(KEY_RECOVERY_PHRASE, normalizeRecoveryPhrase(rawInput));
+      await this.setItem(KEY_RECOVERY_BACKED_UP, JSON.stringify(true));
+    }
+
+    return {
+      wallet,
+      source: parsed.source,
+      derivationPath: parsed.derivationPath,
+    };
   }
 
   async hasStoredWallet(): Promise<boolean> {
@@ -240,6 +292,29 @@ class SecureStoreWalletService implements WalletService {
     }
   }
 
+  async getStoredRecoveryPhrase(): Promise<string | null> {
+    return this.getItem(KEY_RECOVERY_PHRASE);
+  }
+
+  async isRecoveryBackedUp(): Promise<boolean> {
+    const raw = await this.getItem(KEY_RECOVERY_BACKED_UP);
+
+    if (!raw) {
+      return false;
+    }
+
+    try {
+      return Boolean(JSON.parse(raw));
+    } catch {
+      await this.deleteItem(KEY_RECOVERY_BACKED_UP);
+      return false;
+    }
+  }
+
+  async markRecoveryBackedUp(): Promise<void> {
+    await this.setItem(KEY_RECOVERY_BACKED_UP, JSON.stringify(true));
+  }
+
   async getKeypair(): Promise<Keypair | null> {
     const raw = await this.getItem(KEY_SECRET);
 
@@ -254,6 +329,16 @@ class SecureStoreWalletService implements WalletService {
       await this.deleteItem(KEY_SECRET);
       return null;
     }
+  }
+
+  async exportSecretKeyBytes(): Promise<number[] | null> {
+    const keypair = await this.getKeypair();
+
+    if (!keypair) {
+      return null;
+    }
+
+    return Array.from(keypair.secretKey);
   }
 
   async storeUserProfile(profile: StoredUserProfile): Promise<void> {
@@ -278,6 +363,8 @@ class SecureStoreWalletService implements WalletService {
   async clearWallet(): Promise<void> {
     await this.deleteItem(KEY_SECRET);
     await this.deleteItem(KEY_META);
+    await this.deleteItem(KEY_RECOVERY_PHRASE);
+    await this.deleteItem(KEY_RECOVERY_BACKED_UP);
     await this.deleteItem(KEY_PROFILE);
   }
 }

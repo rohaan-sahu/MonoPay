@@ -30,6 +30,8 @@ npm run start
 
 - Auth is currently mocked in-app for UI development.
 - OTP code is `123456`.
+- Wallet auth now includes Supabase Web3 sign-in for embedded Solana wallets.
+- Wallet import parser logic (private key bytes/base58/mnemonic) is implemented in `src/services/wallet-import-parser.ts` and can be wired into UI next.
 
 ## SDK Sandbox
 
@@ -51,6 +53,16 @@ npm run start
   - `EXPO_PUBLIC_MONOPAY_ACCOUNT_LINK_MODE=email_only` (recommended while Twilio/SMS is not configured)
   - `EXPO_PUBLIC_MONOPAY_ACCOUNT_LINK_MODE=email_phone` (requires SMS provider in Supabase)
   - For email OTP (instead of magic-link), configure Supabase email template to include `{{ .Token }}` and not `{{ .ConfirmationURL }}`.
+
+## Phase 3 Identity Auto-Provisioning
+
+- Wallet create/import now auto-provisions:
+  - a MonoPay tag
+  - a Metaplex identity card
+  - a wallet identity mapping cache on device
+- For full remote persistence, run:
+  - `scripts/supabase-phase3-identity.sql` in Supabase SQL editor.
+- If these tables are not present yet, app falls back to local identity cache and logs warnings with `[identity-flow]`.
 
 ## Metadata (MonoPay ID Card)
 
