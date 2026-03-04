@@ -17,7 +17,7 @@ import { useWalletStore } from '@/stores/wallet-stores';
 import IdCard from "@/components/IdCard";
 import { BackButton } from "@/components/ProfileButtons";
 import { backButtonStyles } from "@/styles/buttonBack";
-import { short } from "@/helpers/friendsHelper";
+import { short } from "@/helpers/addressHelper";
 
 // temporary styles
 const hist = StyleSheet.create({

@@ -6,10 +6,12 @@ import { useState } from "react";
 import { useRouter } from "expo-router";
 import { homeScreenStyles as s } from "@/styles/screenHome";
 import { SearchBarRound } from "@/components/SearchBars";
-import { FriendListButton, IdCardButton, NetworkToggle, ScanButton } from "@/components/HomeButtons";
+import { FriendListButton, IdCardButton, NetworkToggle, QRCodeButton, ScanButton } from "@/components/HomeButtons";
 import SlideCards from "@/components/SlideCards";
 import LockScreen from "../lock";
 import IdCard from "@/components/IdCard";
+import QRCodeView from "@/components/QRcodeView";
+
 
 export default function SendScreen() {
   const [search,setSearch] = useState("");
@@ -29,7 +31,7 @@ export default function SendScreen() {
         <View style ={s.btnContainer}>
           <ScanButton/>
           <FriendListButton/>
-          <ScanButton/>
+          <QRCodeButton/>
           <ScanButton/>
         </View>
         <LockScreen/>

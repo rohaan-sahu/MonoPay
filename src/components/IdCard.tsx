@@ -1,8 +1,11 @@
 import { Text,View,Image, TouchableOpacity } from "react-native";
 import { idCardStyles as s} from "@/styles/miscIdCard";
 import { Ionicons } from "@expo/vector-icons";
+import { useRouter } from "expo-router";
+
 
 export default function IdCard() {
+    const router = useRouter();
 
     const verified = "verified";
     const nickname = "@nickname";
@@ -21,7 +24,7 @@ export default function IdCard() {
                     <Ionicons name="checkmark-done" size={18} color="#000000a3" />
                     <Text>{verified}</Text>
                 </View>
-                <TouchableOpacity style={s.idCardQR}>
+                <TouchableOpacity style={s.idCardQR} onPress={() => router.push("/test")}>
                     <Ionicons name="qr-code-sharp" size={18} color="#000000a3" />
                 </TouchableOpacity>
             </View>

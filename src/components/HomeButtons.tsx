@@ -16,7 +16,7 @@ export function ScanButton(){
             style={s.scanBtn}
             onPress={() => router.push("/scan")}
           >
-            <Ionicons name="qr-code" size={20} color="#0a0a1a" />
+            <Ionicons name="scan-sharp" size={20} color="#0a0a1a" />
           </TouchableOpacity>
           <Text style={s.homeButtonText}>Scan any</Text>
           <Text style={s.homeButtonText}>QR code</Text>
@@ -53,6 +53,24 @@ export function IdCardButton() {
         <Text>P</Text>
       </TouchableOpacity>
 )
+}
+
+export function QRCodeButton(){
+
+    const router = useRouter();
+
+    return (
+      <View style={s.homeButtonView}>
+        <TouchableOpacity
+            style={s.scanBtn}
+            onPress={() => router.push("/test")}
+          >
+            <Ionicons name="qr-code-outline" size={20} color="#0a0a1a" />
+          </TouchableOpacity>
+          <Text style={s.homeButtonText}>Send funds</Text>
+          <Text style={s.homeButtonText}>to anyone</Text>
+      </View>
+    )
 }
 
 export default function LockButton() {
