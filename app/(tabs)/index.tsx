@@ -10,7 +10,7 @@ import { FriendListButton, IdCardButton, NetworkToggle, QRCodeButton, ScanButton
 import SlideCards from "@/components/SlideCards";
 import LockScreen from "../lock";
 import IdCard from "@/components/IdCard";
-import QRCodeView, { QRCodeGen } from "@/components/QRcodeView";
+import { QRCodeGen } from "@/components/QRcodeView";
 import GoogleScanScreen from "../goggleScan";
 
 

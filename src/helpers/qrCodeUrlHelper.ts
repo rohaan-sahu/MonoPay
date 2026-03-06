@@ -15,6 +15,8 @@ interface SimpleUrlProp {
   message: string;
 }
 
+
+// NOT WORKING AS EXPECTED.  GIVING INCORRECT LINKS
 export const url = encodeURL({
   recipient: new PublicKey(SENDER_PUBKEY!),
   //amount: new BigNumber(0.1),
