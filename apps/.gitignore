@@ -12,6 +12,7 @@ web-build/
 .vscode
 plan.md
 payments.md
+CLAUDE.md
 
 npm-debug.*
 *.jks

@@ -68,7 +68,9 @@ export default function HomeScreen() {
         setBalanceError("No balances found for this wallet.");
       } else {
         setCurrencies(balances);
-        setCurrencyIndex((prev) => Math.min(prev, balances.length - 1));
+        setCurrencyIndex((prev) => {
+          return Math.min(prev, balances.length - 1);
+        });
       }
 
       setTransactions(latestTransactions);
@@ -140,7 +142,7 @@ export default function HomeScreen() {
             </View>
             <Text style={s.primaryButtonLabel}>Send</Text>
           </Pressable>
-          <Pressable style={s.primaryButton}>
+          <Pressable style={s.primaryButton} onPress={() => router.push("/request")}>
             <View style={s.primaryButtonIcon}>
               <Feather name="arrow-down" size={16} color="#111111" />
             </View>
@@ -151,7 +153,7 @@ export default function HomeScreen() {
         {/* Quick Access */}
         <Text style={s.quickAccessHeader}>Quick Access</Text>
         <View style={s.quickAccessRow}>
-          <Pressable style={s.quickAccessItem}>
+          <Pressable style={s.quickAccessItem} onPress={() => router.push("/(tabs)/scan")}>
             <View style={s.quickAccessCircle}>
               <Feather name="camera" size={22} color="#111111" />
             </View>
@@ -163,13 +165,13 @@ export default function HomeScreen() {
             </View>
             <Text style={s.quickAccessLabel}>Send</Text>
           </Pressable>
-          <Pressable style={s.quickAccessItem}>
+          <Pressable style={s.quickAccessItem} onPress={() => router.push("/request")}>
             <View style={s.quickAccessCircle}>
               <Feather name="arrow-down-left" size={22} color="#111111" />
             </View>
             <Text style={s.quickAccessLabel}>Request</Text>
           </Pressable>
-          <Pressable style={s.quickAccessItem}>
+          <Pressable style={s.quickAccessItem} onPress={() => router.push("/(tabs)/scan")}>
             <View style={s.quickAccessCircle}>
               <Feather name="maximize" size={22} color="#111111" />
             </View>

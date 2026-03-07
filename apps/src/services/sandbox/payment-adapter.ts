@@ -7,14 +7,9 @@ import {
   sendAndConfirmTransaction,
   SystemProgram,
   Transaction,
-  TransactionInstruction
 } from "@solana/web3.js";
-import { Buffer } from "buffer";
 import { getPaymentConfig, resolveWalletAddress } from "@mpay/services/sandbox/env";
 import { PaymentAdapter, PrivatePaymentInput, PrivatePaymentResult } from "@mpay/services/sandbox/types";
-
-const MEMO_PROGRAM_ID = new PublicKey("MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr");
-const HEX_PATTERN = /^[0-9a-fA-F]+$/;
 
 function assertPaymentInput(input: PrivatePaymentInput) {
   if (!input.fromHandle.trim()) {
@@ -24,7 +19,6 @@ function assertPaymentInput(input: PrivatePaymentInput) {
   if (!input.toHandle.trim()) {
     throw new Error("Recipient handle or wallet address is required.");
   }
-
 }
 
 function inferExplorerCluster(rpcUrl: string) {
@@ -57,94 +51,6 @@ function formatLamportsAsSol(lamports: number) {
     minimumFractionDigits: 0,
     maximumFractionDigits: 9,
   });
-}
-
-function normalizeEncryptEndpoint(endpoint: string) {
-  const trimmed = endpoint.trim();
-
-  if (!trimmed) {
-    return "";
-  }
-
-  const withProtocol = /^https?:\/\//i.test(trimmed) ? trimmed : `http://${trimmed}`;
-
-  try {
-    const url = new URL(withProtocol);
-
-    if (!url.pathname || url.pathname === "/") {
-      url.pathname = "/encrypt";
-    }
-
-    return url.toString().replace(/\/$/, "");
-  } catch {
-    return trimmed;
-  }
-}
-
-function buildEncryptEndpointCandidates() {
-  const configured = process.env.EXPO_PUBLIC_MONOPAY_INCO_ENCRYPT_ENDPOINT?.trim();
-  const seeds = configured
-    ? [configured]
-    : ["http://127.0.0.1:8787/encrypt", "http://localhost:8787/encrypt"];
-  const candidates = new Set<string>();
-
-  for (const seed of seeds) {
-    const normalized = normalizeEncryptEndpoint(seed);
-
-    if (!normalized) {
-      continue;
-    }
-
-    candidates.add(normalized);
-
-    if (normalized.includes("127.0.0.1")) {
-      candidates.add(normalized.replace("127.0.0.1", "localhost"));
-    }
-
-    if (normalized.includes("localhost")) {
-      candidates.add(normalized.replace("localhost", "127.0.0.1"));
-    }
-  }
-
-  return Array.from(candidates);
-}
-
-async function requestEncryptedAmount(endpoint: string, lamports: number) {
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 8000);
-  let response: Response;
-
-  try {
-    response = await fetch(endpoint, {
-      method: "POST",
-      headers: {
-        "content-type": "application/json"
-      },
-      body: JSON.stringify({
-        value: String(lamports)
-      }),
-      signal: controller.signal
-    });
-  } catch (error) {
-    const message = error instanceof Error ? error.message : "request failed";
-    throw new Error(`unreachable (${message})`);
-  } finally {
-    clearTimeout(timeout);
-  }
-
-  if (!response.ok) {
-    const errorBody = (await response.json().catch(() => ({}))) as { error?: unknown };
-    const message = typeof errorBody.error === "string" ? errorBody.error : `endpoint failed (${response.status})`;
-    throw new Error(message);
-  }
-
-  const body = (await response.json()) as { encryptedHex?: unknown };
-
-  if (typeof body.encryptedHex !== "string" || !HEX_PATTERN.test(body.encryptedHex)) {
-    throw new Error("invalid encryptedHex response");
-  }
-
-  return body.encryptedHex;
 }
 
 async function assertSolTransferPreflight(options: {
@@ -187,41 +93,7 @@ async function assertSolTransferPreflight(options: {
   }
 }
 
-async function encryptAmountForMemo(lamports: number): Promise<string> {
-  const candidates = buildEncryptEndpointCandidates();
-
-  if (candidates.length === 0) {
-    throw new Error(
-      "Missing EXPO_PUBLIC_MONOPAY_INCO_ENCRYPT_ENDPOINT. Set it to http://127.0.0.1:8787/encrypt and start: npm --prefix apps run encrypt:server"
-    );
-  }
-  const failures: string[] = [];
-
-  for (let attempt = 0; attempt < candidates.length; attempt += 1) {
-    const endpoint = candidates[attempt];
-
-    try {
-      const encryptedHex = await requestEncryptedAmount(endpoint, lamports);
-
-      if (attempt > 0) {
-        console.warn("[pay-flow] inco:encrypt:fallback-endpoint-used", {
-          endpoint,
-          attempt: attempt + 1
-        });
-      }
-
-      return encryptedHex;
-    } catch (error) {
-      failures.push(`${endpoint} -> ${error instanceof Error ? error.message : String(error)}`);
-    }
-  }
-
-  throw new Error(
-    `Encryption endpoint is unreachable. Tried: ${failures.join(" | ")}. Start local server with: npm --prefix apps run encrypt:server. If testing on a physical device, use your laptop LAN IP in EXPO_PUBLIC_MONOPAY_INCO_ENCRYPT_ENDPOINT (e.g. http://192.168.x.x:8787/encrypt).`
-  );
-}
-
-export class IncoSolanaPaymentAdapter implements PaymentAdapter {
+export class SolanaPaymentAdapter implements PaymentAdapter {
   async createPrivatePayment(input: PrivatePaymentInput): Promise<PrivatePaymentResult> {
     assertPaymentInput(input);
 
@@ -229,7 +101,7 @@ export class IncoSolanaPaymentAdapter implements PaymentAdapter {
     const assetSymbol = input.assetSymbol.trim().toUpperCase();
 
     if (assetSymbol !== "SOL") {
-      throw new Error("Only SOL transfers are enabled right now. USDC/USDT rail will be added next.");
+      throw new Error("Only SOL transfers are enabled by this adapter.");
     }
 
     const senderKeypair = input.senderSecretKeyBytes
@@ -238,7 +110,7 @@ export class IncoSolanaPaymentAdapter implements PaymentAdapter {
     const toAddress = resolveWalletAddress(input.toHandle, {
       directory: config.handleDirectory,
       fallbackAddress: config.defaultRecipientPublicKey,
-      label: "Recipient wallet"
+      label: "Recipient wallet",
     });
 
     const recipient = new PublicKey(toAddress);
@@ -262,40 +134,18 @@ export class IncoSolanaPaymentAdapter implements PaymentAdapter {
       });
     }
 
-    const encryptedAmountHex = await encryptAmountForMemo(lamports);
-    const memoPayload = JSON.stringify({
-      app: "monopay",
-      privacy: "inco",
-      encryptedAmountHex,
-      encryptionMode: "remote-inco",
-      fromHandle: input.fromHandle.trim(),
-      toHandle: input.toHandle.trim(),
-      asset: assetSymbol,
-      note: input.memo?.slice(0, 64) ?? "",
-      ts: new Date().toISOString()
-    });
-
-    const memoData = new TextEncoder().encode(memoPayload);
-
-    if (memoData.length > 566) {
-      throw new Error("Encrypted memo payload is too large. Reduce memo text and try again.");
-    }
-
     const connection = new Connection(config.rpcUrl, "confirmed");
     const transferIx = SystemProgram.transfer({
       fromPubkey: senderKeypair.publicKey,
       toPubkey: recipient,
-      lamports
+      lamports,
     });
-    const memoIx = new TransactionInstruction({
-      programId: MEMO_PROGRAM_ID,
-      keys: [],
-      data: Buffer.from(memoData)
-    });
-    const transaction = new Transaction().add(transferIx, memoIx);
+    const transaction = new Transaction().add(transferIx);
     transaction.feePayer = senderKeypair.publicKey;
+
     const latestBlockhash = await connection.getLatestBlockhash("confirmed");
     transaction.recentBlockhash = latestBlockhash.blockhash;
+
     console.log("[pay-flow] preflight:start", {
       assetSymbol,
       from: senderKeypair.publicKey.toBase58(),
@@ -316,7 +166,7 @@ export class IncoSolanaPaymentAdapter implements PaymentAdapter {
     try {
       signature = await sendAndConfirmTransaction(connection, transaction, [senderKeypair], {
         commitment: "confirmed",
-        preflightCommitment: "confirmed"
+        preflightCommitment: "confirmed",
       });
     } catch (error) {
       const message = error instanceof Error ? error.message.toLowerCase() : String(error).toLowerCase();

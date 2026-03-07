@@ -11,6 +11,8 @@ export type WalletBalanceEntry = {
   available: string;
   isStable: boolean;
   mint?: string;
+  rail?: "public";
+  note?: string;
 };
 
 type FetchWalletBalancesOptions = {
@@ -165,6 +167,7 @@ export async function fetchWalletBalances(
         available: formatTokenAmount(amount, { min: 0, max: 6 }),
         isStable: true,
         mint,
+        rail: "public",
       };
     });
 
@@ -176,6 +179,7 @@ export async function fetchWalletBalances(
       display: formatSolDisplay(solAmount),
       available: formatTokenAmount(solAmount, { min: 0, max: 6 }),
       isStable: false,
+      rail: "public",
     };
 
     const result = [...stablecoins, solBalance];

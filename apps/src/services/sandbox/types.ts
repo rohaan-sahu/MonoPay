@@ -15,7 +15,7 @@ export type PrivatePaymentResult = {
   explorerUrl: string;
   network: SupportedNetwork;
   createdAt: string;
-  rail?: "sol_public" | "spl_public" | "inco_confidential";
+  rail?: "sol_public" | "spl_public";
   assetSymbol?: string;
   assetMint?: string;
   amountUi?: number;

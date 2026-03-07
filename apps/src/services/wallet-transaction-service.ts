@@ -281,7 +281,11 @@ async function enrichCounterparties(
     const profile = item.counterpartyAddress ? profileMap.get(item.counterpartyAddress) : undefined;
     const tag = profile?.tag?.replace(/^@+/, "");
     const counterpartyTag = item.counterpartyTag || (tag ? `@${tag}` : undefined);
-    const counterpartyLabel = profile?.displayName || counterpartyTag || item.counterpartyLabel;
+    const rawLabel = profile?.displayName || counterpartyTag || item.counterpartyLabel;
+    const counterpartyLabel =
+      rawLabel && rawLabel.replace(/^@/, "").length > 20
+        ? truncateAddress(rawLabel.replace(/^@/, ""))
+        : rawLabel;
 
     return {
       ...item,

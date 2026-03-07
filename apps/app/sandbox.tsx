@@ -83,7 +83,7 @@ export default function SandboxScreen() {
         assetSymbol: "SOL"
       });
 
-      console.log("[MonoPay Sandbox] Inco payment transaction link:", result.explorerUrl);
+      console.log("[MonoPay Sandbox] SOL payment transaction link:", result.explorerUrl);
       setPaymentResult(`Tx ${result.transactionId}\n${result.explorerUrl}`);
       pushLog(`Payment triggered -> ${result.explorerUrl}`);
     } catch (error) {
@@ -310,9 +310,7 @@ export default function SandboxScreen() {
 
           <View style={s.card}>
             <Text style={s.cardTitle}>1) Private payment trigger</Text>
-            <Text style={s.cardMeta}>
-              Uses Solana transaction + mandatory Inco remote encryption endpoint and logs explorer URL.
-            </Text>
+            <Text style={s.cardMeta}>Uses standard Solana transfer flow and logs explorer URL.</Text>
 
             <View>
               <Text style={s.label}>Sender handle</Text>
@@ -341,7 +339,7 @@ export default function SandboxScreen() {
             </View>
 
             <Pressable style={s.buttonDark} onPress={handleTriggerPayment}>
-              <Text style={s.buttonDarkText}>Trigger Inco Payment</Text>
+              <Text style={s.buttonDarkText}>Trigger SOL Payment</Text>
             </Pressable>
 
             {!!paymentResult && (

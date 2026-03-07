@@ -1,4 +1,4 @@
-import { router } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import { useCallback, useState } from "react";
 import { Pressable, Text, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -17,7 +17,18 @@ const SUPPORTED_SEND_ASSETS = new Set(["SOL", "USDC"]);
 
 export default function AmountScreen() {
   const { currentUser } = useAuthStore();
-  const [amount, setAmount] = useState("");
+  const params = useLocalSearchParams<{
+    recipient?: string;
+    recipientName?: string;
+    source?: string;
+    amount?: string;
+  }>();
+  const qrRecipient = typeof params.recipient === "string" ? params.recipient.trim() : "";
+  const qrRecipientName = typeof params.recipientName === "string" ? params.recipientName.trim() : "";
+  const isQrPrefill = params.source === "qr" && qrRecipient.length > 0;
+  const [amount, setAmount] = useState(() =>
+    params.source === "qr" && typeof params.amount === "string" ? params.amount : ""
+  );
   const [memo, setMemo] = useState("");
   const [currencies, setCurrencies] = useState<WalletBalanceEntry[]>(FALLBACK_CURRENCIES);
   const [currencyIndex, setCurrencyIndex] = useState(0);
@@ -80,6 +91,21 @@ export default function AmountScreen() {
   };
 
   const handleNext = () => {
+    if (isQrPrefill) {
+      router.push({
+        pathname: "/send/confirm",
+        params: {
+          amount,
+          currency: current.symbol,
+          memo,
+          isStable: current.isStable ? "1" : "0",
+          recipient: qrRecipient,
+          recipientName: qrRecipientName,
+        },
+      });
+      return;
+    }
+
     router.push({
       pathname: "/send/recipient",
       params: {

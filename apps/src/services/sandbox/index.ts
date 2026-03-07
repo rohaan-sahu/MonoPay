@@ -1,10 +1,10 @@
 import { SupabaseAccountLinkingAdapter } from "@mpay/services/sandbox/account-linking-adapter";
 import { getSandboxDefaults } from "@mpay/services/sandbox/env";
 import { MetaplexIdCardAdapter } from "@mpay/services/sandbox/id-card-adapter";
-import { IncoSolanaPaymentAdapter } from "@mpay/services/sandbox/payment-adapter";
+import { SolanaPaymentAdapter } from "@mpay/services/sandbox/payment-adapter";
 
 export const sandboxAdapters = {
-  payment: new IncoSolanaPaymentAdapter(),
+  payment: new SolanaPaymentAdapter(),
   accountLinking: new SupabaseAccountLinkingAdapter(),
   idCard: new MetaplexIdCardAdapter()
 };

@@ -19,7 +19,7 @@ create table if not exists public.payment_intents (
   amount_ui numeric(38, 12) not null,
   amount_raw text,
   memo text,
-  rail text not null check (rail in ('sol_public', 'spl_public', 'inco_confidential')),
+  rail text not null check (rail in ('sol_public', 'spl_public')),
   network text not null default 'solana-devnet' check (network in ('solana-devnet', 'solana-testnet', 'solana-mainnet')),
   status text not null default 'pending' check (status in ('pending', 'submitted', 'confirmed', 'failed')),
   tx_signature text unique,

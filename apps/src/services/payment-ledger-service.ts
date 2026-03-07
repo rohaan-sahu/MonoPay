@@ -1,7 +1,7 @@
 import { PublicKey } from "@solana/web3.js";
 import { supabase } from "@mpay/lib/supabase";
 
-export type PaymentRail = "sol_public" | "spl_public" | "inco_confidential";
+export type PaymentRail = "sol_public" | "spl_public";
 export type PaymentIntentStatus = "pending" | "submitted" | "confirmed" | "failed";
 
 export type PaymentIntentHandle = {
@@ -93,11 +93,11 @@ function toStatus(value: unknown): PaymentIntentStatus {
 }
 
 function toRail(value: unknown): PaymentRail {
-  if (value === "sol_public" || value === "spl_public" || value === "inco_confidential") {
+  if (value === "sol_public" || value === "spl_public") {
     return value;
   }
 
-  return "sol_public";
+  return "spl_public";
 }
 
 function toHistoryEntry(row: Record<string, unknown>): PaymentLedgerHistoryEntry | null {

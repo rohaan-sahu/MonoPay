@@ -13,7 +13,6 @@ npm run start
 - `npm run android`
 - `npm run ios`
 - `npm run web`
-- `npm run encrypt:server` (local Inco encryption endpoint for sandbox payments)
 - `npm run lint`
 - `npm run typecheck`
 
@@ -24,49 +23,46 @@ npm run start
 - `app/lock.tsx` mandatory lock screen
 - `app/(tabs)/` main app shell (`home`, `scan`, `chat`, `profile`)
 - `assets/` static assets
-- `src/` internal logic and shared modules (`components`, `services`, `stores`, `styles`)
+- `src/` shared modules (`components`, `services`, `stores`, `styles`)
 
 ## Notes
 
-- Auth is currently mocked in-app for UI development.
-- OTP code is `123456`.
-- Wallet auth now includes Supabase Web3 sign-in for embedded Solana wallets.
-- Wallet import parser logic (private key bytes/base58/mnemonic) is implemented in `src/services/wallet-import-parser.ts` and can be wired into UI next.
+- OTP code for sandbox flow is `123456`.
+- Wallet auth includes Supabase Web3 sign-in for embedded Solana wallets.
+- Wallet import parser logic (private key bytes/base58/mnemonic) is in `src/services/wallet-import-parser.ts`.
 
 ## SDK Sandbox
 
-- Open `Profile -> SDK Sandbox (POC)` to test real SDK-backed flows.
-- Copy `apps/.env.example` to `apps/.env` and fill the values before running.
-- Current sandbox integrations:
-  - Inco + Solana transaction flow for payment trigger
+- Open `Profile -> SDK Sandbox (POC)` to test:
+  - SOL transfer flow
   - Supabase OTP flow for email + phone verification
-  - Metaplex Core asset lifecycle for ID card create/update/deactivate
-- React Native note:
-  - `@inco/solana-sdk` encryption currently depends on Node `crypto` and cannot run directly in Expo iOS runtime.
-  - Configure `EXPO_PUBLIC_MONOPAY_INCO_ENCRYPT_ENDPOINT` to call a backend/Edge function that runs `encryptValue`.
-  - Sandbox payment trigger is strict and fails if this endpoint is missing/unreachable.
-  - Local dev flow:
-    - Start endpoint: `npm run encrypt:server`
-    - Keep `EXPO_PUBLIC_MONOPAY_INCO_ENCRYPT_ENDPOINT=http://127.0.0.1:8787/encrypt` for iOS simulator.
-    - If testing on physical device, replace `127.0.0.1` with your machine LAN IP.
-- Account-link mode:
-  - `EXPO_PUBLIC_MONOPAY_ACCOUNT_LINK_MODE=email_only` (recommended while Twilio/SMS is not configured)
-  - `EXPO_PUBLIC_MONOPAY_ACCOUNT_LINK_MODE=email_phone` (requires SMS provider in Supabase)
-  - For email OTP (instead of magic-link), configure Supabase email template to include `{{ .Token }}` and not `{{ .ConfirmationURL }}`.
+  - Metaplex Core identity-card create/update/deactivate
+- Copy `apps/.env.example` to `apps/.env` and fill values before running.
 
-## Phase 3 Identity Auto-Provisioning
+## Payment Rails
 
-- Wallet create/import now auto-provisions:
-  - a MonoPay tag
-  - a Metaplex identity card
-  - a wallet identity mapping cache on device
-- For full remote persistence, run:
-  - `scripts/supabase-phase3-identity.sql` in Supabase SQL editor.
-- If these tables are not present yet, app falls back to local identity cache and logs warnings with `[identity-flow]`.
+- SOL: standard public Solana transfer.
+- USDC:
+  - MagicBlock private transfer when `EXPO_PUBLIC_MONOPAY_MAGICBLOCK_ENABLED=true`
+  - SPL public transfer fallback when MagicBlock is disabled.
+
+## Account Link Mode
+
+- `EXPO_PUBLIC_MONOPAY_ACCOUNT_LINK_MODE=email_only` (recommended while Twilio/SMS is not configured)
+- `EXPO_PUBLIC_MONOPAY_ACCOUNT_LINK_MODE=email_phone` (requires SMS provider in Supabase)
+- For email OTP (instead of magic-link), configure Supabase template with `{{ .Token }}`.
+
+## Identity Auto-Provisioning
+
+- Wallet create/import auto-provisions:
+  - MonoPay tag
+  - Metaplex identity card
+  - local wallet identity mapping cache
+- For full remote persistence, run `scripts/supabase-phase3-identity.sql` in Supabase SQL editor.
 
 ## Metadata (MonoPay ID Card)
 
 - Versioned metadata template: `apps/assets/metadata/monopay-id-card-v1.json`
 - Metadata pipeline guide: `apps/assets/metadata/README.md`
-- Current expected URI pattern:
+- Expected URI pattern:
   - `https://<supabase-project-ref>.supabase.co/storage/v1/object/public/monopay-assets/metadata/monopay-id-card-v1.json`

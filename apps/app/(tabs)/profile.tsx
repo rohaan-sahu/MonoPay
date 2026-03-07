@@ -1,7 +1,7 @@
 import { Redirect, router } from "expo-router";
 import { useCallback, useState } from "react";
 import { useFocusEffect } from "@react-navigation/native";
-import { ActivityIndicator, Alert, Pressable, ScrollView, Text, View } from "react-native";
+import { ActivityIndicator, Alert, Clipboard, Pressable, ScrollView, Switch, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Feather } from "@expo/vector-icons";
 import { GradientBackdrop } from "@mpay/components/GradientBackdrop";
@@ -114,6 +114,8 @@ export default function ProfilePage() {
   const [isSyncingOnChain, setIsSyncingOnChain] = useState(false);
   const [verificationResult, setVerificationResult] = useState<OnChainIdentityVerificationResult | null>(null);
   const [identityRecord, setIdentityRecord] = useState<WalletIdentityRecord | null>(null);
+  const [isDevnet, setIsDevnet] = useState(true);
+  const [tagCopied, setTagCopied] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
@@ -270,9 +272,16 @@ export default function ProfilePage() {
 
           {/* Tag + Points */}
           <View style={s.tagRow}>
-            <View style={s.tagPill}>
-              <Text style={s.tagPillText}>{resolvedTag}</Text>
-            </View>
+            <Pressable
+              style={s.tagPill}
+              onPress={() => {
+                Clipboard.setString(resolvedTag);
+                setTagCopied(true);
+                setTimeout(() => setTagCopied(false), 1500);
+              }}
+            >
+              <Text style={s.tagPillText}>{tagCopied ? "Copied!" : resolvedTag}</Text>
+            </Pressable>
             <View style={s.pointsPill}>
               <Text style={s.pointsPillText}>462</Text>
               <Feather name="zap" size={12} color="#f97316" />
@@ -383,18 +392,47 @@ export default function ProfilePage() {
                 ? `${truncateAddress(currentWalletAddress)} · ${formatNetworkLabel(resolvedNetwork)}`
                 : "Not connected"
             }
-            onPress={() => void handleVerifyOnChain()}
-            loading={isVerifyingOnChain}
-          />
-          {!isLoadingWalletState && !isWalletBackedUp && (
-            <SettingRow
-              icon="download"
-              label={walletHasPhrase ? "Back Up Recovery Phrase" : "Export Wallet Key"}
-              onPress={() =>
-                router.push(walletHasPhrase ? "/(auth)/wallet-backup" : "/(auth)/wallet-export")
+            onPress={() => {
+              if (currentWalletAddress) {
+                Clipboard.setString(currentWalletAddress);
+                Alert.alert("Copied", "Wallet address copied to clipboard.");
               }
+            }}
+          />
+          <SettingRow
+            icon="download"
+            label="Export Wallet Key"
+            subtitle="Save your secret key for recovery"
+            onPress={() => router.push("/(auth)/wallet-export")}
+          />
+          {!isLoadingWalletState && walletHasPhrase && !isWalletBackedUp && (
+            <SettingRow
+              icon="shield"
+              label="Back Up Recovery Phrase"
+              subtitle="Your phrase has not been backed up"
+              onPress={() => router.push("/(auth)/wallet-backup")}
             />
           )}
+
+          {/* Network toggle */}
+          <View style={[s.settingRow, s.settingRowBorder]}>
+            <View style={s.settingIcon}>
+              <Feather name="globe" size={16} color="#4b5563" />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={s.settingLabel}>{isDevnet ? "Devnet" : "Mainnet"}</Text>
+              <Text style={s.settingMeta}>
+                {isDevnet ? "Test network for development" : "Live Solana network"}
+              </Text>
+            </View>
+            <Switch
+              value={!isDevnet}
+              onValueChange={(val) => setIsDevnet(!val)}
+              trackColor={{ false: "#e5e7eb", true: "#111111" }}
+              thumbColor="#fff"
+            />
+          </View>
+
           <SettingRow
             icon="trash-2"
             label="Remove Wallet"

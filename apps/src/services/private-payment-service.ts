@@ -1,7 +1,8 @@
 import { LAMPORTS_PER_SOL } from "@solana/web3.js";
-import { IncoSolanaPaymentAdapter } from "@mpay/services/sandbox/payment-adapter";
+import { SolanaPaymentAdapter } from "@mpay/services/sandbox/payment-adapter";
 import { paymentLedgerService, PaymentRail } from "@mpay/services/payment-ledger-service";
 import { SplUsdcPaymentAdapter } from "@mpay/services/payments/spl-usdc-payment-adapter";
+import { MagicBlockPrivatePaymentAdapter } from "@mpay/services/payments/magicblock-private-payment-adapter";
 import { resolvePayRecipient, ResolvedPayRecipient } from "@mpay/services/pay-recipient-service";
 import { PrivatePaymentResult } from "@mpay/services/sandbox/types";
 import { walletService } from "@mpay/services/wallet-service";
@@ -22,8 +23,14 @@ type SendPrivatePaymentResult = {
 };
 
 class PrivatePaymentService {
-  private solAdapter = new IncoSolanaPaymentAdapter();
+  private solAdapter = new SolanaPaymentAdapter();
   private usdcAdapter = new SplUsdcPaymentAdapter();
+  private magicBlockUsdcAdapter = new MagicBlockPrivatePaymentAdapter();
+
+  private shouldUseMagicBlockUsdcRail() {
+    const raw = process.env.EXPO_PUBLIC_MONOPAY_MAGICBLOCK_ENABLED?.trim().toLowerCase();
+    return raw === "1" || raw === "true" || raw === "yes" || raw === "on";
+  }
 
   async sendByRecipient(input: SendPrivatePaymentInput): Promise<SendPrivatePaymentResult> {
     const fromHandle = input.fromHandle.trim();
@@ -57,8 +64,15 @@ class PrivatePaymentService {
       throw new Error("You cannot send payment to your own wallet.");
     }
 
-    const selectedAdapter = assetSymbol === "USDC" ? this.usdcAdapter : this.solAdapter;
-    const rail: PaymentRail = assetSymbol === "USDC" ? "spl_public" : "sol_public";
+    const useMagicBlockUsdcRail = assetSymbol === "USDC" && this.shouldUseMagicBlockUsdcRail();
+    const selectedAdapter =
+      assetSymbol === "SOL"
+        ? this.solAdapter
+        : useMagicBlockUsdcRail
+          ? this.magicBlockUsdcAdapter
+          : this.usdcAdapter;
+
+    const rail: PaymentRail = assetSymbol === "SOL" ? "sol_public" : "spl_public";
     const fallbackAmountRaw =
       assetSymbol === "SOL" ? Math.round(input.amount * LAMPORTS_PER_SOL).toString() : undefined;
     const fallbackAssetMint = assetSymbol === "USDC" ? process.env.EXPO_PUBLIC_MONOPAY_USDC_MINT : undefined;
@@ -100,39 +114,44 @@ class PrivatePaymentService {
       });
     } catch (error) {
       if (intentId) {
-        await paymentLedgerService.markIntentFailed({
-          intentId,
-          errorMessage: error instanceof Error ? error.message : String(error),
-        }).catch((ledgerError) => {
-          console.warn("[payment-ledger] intent:mark-failed:error", {
+        await paymentLedgerService
+          .markIntentFailed({
             intentId,
-            message: ledgerError instanceof Error ? ledgerError.message : String(ledgerError),
+            errorMessage: error instanceof Error ? error.message : String(error),
+          })
+          .catch((ledgerError) => {
+            console.warn("[payment-ledger] intent:mark-failed:error", {
+              intentId,
+              message: ledgerError instanceof Error ? ledgerError.message : String(ledgerError),
+            });
           });
-        });
       }
       throw error;
     }
 
     if (intentId) {
-      await paymentLedgerService.markIntentSubmitted({
-        intentId,
-        txSignature: payment.transactionId,
-        explorerUrl: payment.explorerUrl,
-        network: payment.network,
-        status: "confirmed",
-        assetMint: payment.assetMint || fallbackAssetMint,
-        amountRaw: payment.amountRaw || fallbackAmountRaw,
-      }).catch((ledgerError) => {
-        console.warn("[payment-ledger] intent:mark-confirmed:error", {
+      await paymentLedgerService
+        .markIntentSubmitted({
           intentId,
-          message: ledgerError instanceof Error ? ledgerError.message : String(ledgerError),
+          txSignature: payment.transactionId,
+          explorerUrl: payment.explorerUrl,
+          network: payment.network,
+          status: "confirmed",
+          assetMint: payment.assetMint || fallbackAssetMint,
+          amountRaw: payment.amountRaw || fallbackAmountRaw,
+        })
+        .catch((ledgerError) => {
+          console.warn("[payment-ledger] intent:mark-confirmed:error", {
+            intentId,
+            message: ledgerError instanceof Error ? ledgerError.message : String(ledgerError),
+          });
         });
-      });
     }
 
     console.log("[pay-flow] send:ok", {
       assetSymbol,
       rail,
+      adapter: assetSymbol === "SOL" ? "sol_public" : useMagicBlockUsdcRail ? "magicblock_private" : "spl_public",
       intentId,
       recipient: recipient.normalized,
       walletAddress: recipient.walletAddress,

@@ -282,33 +282,51 @@ export default function RecipientScreen() {
           </Pressable>
         </ScrollView>
 
-        {/* Search input */}
-        <View style={s.searchInputWrap}>
-          <Feather name="search" size={18} color="#9ca3af" />
-          <TextInput
-            style={s.searchInput}
-            placeholder={placeholder}
-            placeholderTextColor="#9ca3af"
-            value={search}
-            onChangeText={setSearch}
-            autoCapitalize="none"
-            autoCorrect={false}
-            onSubmitEditing={() => {
-              const input = search.trim();
-              if (input.length === 0) return;
+        {/* Search input / QR handoff */}
+        {filter === "qr" ? (
+          <Pressable
+            style={s.previewCard}
+            onPress={() => router.push("/(tabs)/scan")}
+          >
+            <View style={s.previewTop}>
+              <View style={s.previewAvatar}>
+                <Feather name="maximize" size={18} color="#9ca3af" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={s.previewName}>Scan Payment QR</Text>
+                <Text style={s.previewWallet}>Open camera and scan recipient code.</Text>
+              </View>
+              <Feather name="arrow-up-right" size={16} color="#9ca3af" />
+            </View>
+          </Pressable>
+        ) : (
+          <View style={s.searchInputWrap}>
+            <Feather name="search" size={18} color="#9ca3af" />
+            <TextInput
+              style={s.searchInput}
+              placeholder={placeholder}
+              placeholderTextColor="#9ca3af"
+              value={search}
+              onChangeText={setSearch}
+              autoCapitalize="none"
+              autoCorrect={false}
+              onSubmitEditing={() => {
+                const input = search.trim();
+                if (input.length === 0) return;
 
-              if (filter === "tag") {
-                const normalized = input.replace(/^@+/, "");
-                if (normalized.length >= 2) {
-                  selectRecipient(`@${normalized}`);
+                if (filter === "tag") {
+                  const normalized = input.replace(/^@+/, "");
+                  if (normalized.length >= 2) {
+                    selectRecipient(`@${normalized}`);
+                  }
+                } else if (filter === "address") {
+                  selectRecipient(input);
                 }
-              } else if (filter === "address") {
-                selectRecipient(input);
-              }
-            }}
-            returnKeyType="go"
-          />
-        </View>
+              }}
+              returnKeyType="go"
+            />
+          </View>
+        )}
 
         {/* Searching state */}
         {isSearching && <Text style={s.searchState}>Searching...</Text>}
