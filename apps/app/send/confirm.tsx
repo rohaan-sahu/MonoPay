@@ -1,6 +1,6 @@
 import { router, useLocalSearchParams } from "expo-router";
 import { useEffect, useRef, useState } from "react";
-import { ActivityIndicator, Linking, Pressable, ScrollView, Text, View } from "react-native";
+import { ActivityIndicator, Alert, Linking, Pressable, ScrollView, Text, View } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { Feather } from "@expo/vector-icons";
 import { privatePaymentService } from "@mpay/services/private-payment-service";
@@ -21,7 +21,6 @@ export default function ConfirmScreen() {
   }>();
 
   const [isSending, setIsSending] = useState(false);
-  const [error, setError] = useState("");
   const [success, setSuccess] = useState<{
     recipient: string;
     explorerUrl: string;
@@ -61,11 +60,9 @@ export default function ConfirmScreen() {
   };
 
   const handleConfirm = async () => {
-    setError("");
-
     const fromHandleBase = (currentUser?.monopayTag || currentUser?.handle || "").trim();
     if (!fromHandleBase) {
-      setError("Your account is missing a sender tag.");
+      Alert.alert("Payment failed", "Your account is missing a sender tag.");
       return;
     }
 
@@ -90,7 +87,7 @@ export default function ConfirmScreen() {
       });
     } catch (err) {
       const message = err instanceof Error ? err.message : "Payment failed.";
-      setError(message);
+      Alert.alert("Payment failed", message);
     } finally {
       setIsSending(false);
     }
@@ -227,11 +224,6 @@ export default function ConfirmScreen() {
           </View>
         </View>
 
-        {!!error && (
-          <View style={s.statusError}>
-            <Text style={s.statusErrorText}>{error}</Text>
-          </View>
-        )}
       </ScrollView>
 
       {/* Dark Footer */}

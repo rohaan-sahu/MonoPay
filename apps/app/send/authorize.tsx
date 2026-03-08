@@ -1,6 +1,6 @@
 import { router, useLocalSearchParams } from "expo-router";
 import { useCallback, useState } from "react";
-import { Platform, Pressable, StyleSheet, Text, View } from "react-native";
+import { Alert, Platform, Pressable, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Feather } from "@expo/vector-icons";
 import { useAuthStore } from "@mpay/stores/auth-store";
@@ -20,7 +20,7 @@ const displayFont = Platform.select({
 });
 
 export default function AuthorizeScreen() {
-  const { currentUser, unlock } = useAuthStore();
+  const { unlock } = useAuthStore();
   const params = useLocalSearchParams<{
     amount: string;
     currency: string;
@@ -31,14 +31,12 @@ export default function AuthorizeScreen() {
   }>();
 
   const [passcode, setPasscode] = useState("");
-  const [error, setError] = useState("");
 
   const symbol = params.isStable === "1" ? "$" : "◎";
 
   const handlePress = useCallback(
     (digit: string) => {
       if (passcode.length >= PIN_LENGTH) return;
-      setError("");
       const next = passcode + digit;
       setPasscode(next);
 
@@ -46,7 +44,7 @@ export default function AuthorizeScreen() {
         setTimeout(() => {
           const result = unlock(next);
           if (!result.ok) {
-            setError(result.error ?? "Incorrect passcode.");
+            Alert.alert("Authorization failed", result.error ?? "Incorrect passcode.");
             setPasscode("");
             return;
           }
@@ -71,7 +69,6 @@ export default function AuthorizeScreen() {
   );
 
   const handleDelete = useCallback(() => {
-    setError("");
     setPasscode((p) => p.slice(0, -1));
   }, []);
 
@@ -110,8 +107,6 @@ export default function AuthorizeScreen() {
             </View>
           ))}
         </View>
-
-        {!!error && <Text style={as.error}>{error}</Text>}
 
         {/* Spacer */}
         <View style={{ flex: 1 }} />
@@ -237,13 +232,6 @@ const as = StyleSheet.create({
     height: 10,
     borderRadius: 5,
     backgroundColor: "#111111",
-  },
-  error: {
-    color: "#f87171",
-    fontSize: 13,
-    textAlign: "center",
-    marginTop: 12,
-    fontFamily: bodyFont,
   },
   numpad: {
     paddingHorizontal: 8,

@@ -1,7 +1,7 @@
 import { Redirect, router } from "expo-router";
 import { useEffect, useMemo, useState } from "react";
 import { Feather } from "@expo/vector-icons";
-import { ActivityIndicator, Clipboard, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { ActivityIndicator, Alert, Clipboard, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { DismissKeyboard } from "@mpay/components/DismissKeyboard";
 import { walletService } from "@mpay/services/wallet-service";
@@ -16,7 +16,6 @@ export default function WalletBackupScreen() {
   const [isSaving, setIsSaving] = useState(false);
   const [checkWord, setCheckWord] = useState("");
   const [hasSavedPhrase, setHasSavedPhrase] = useState(false);
-  const [error, setError] = useState("");
   const [copyStatus, setCopyStatus] = useState("");
 
   const words = useMemo(
@@ -59,30 +58,27 @@ export default function WalletBackupScreen() {
 
   const handleCopyPhrase = () => {
     if (!phraseValue) {
-      setError("No recovery phrase found for this wallet.");
+      Alert.alert("Backup failed", "No recovery phrase found for this wallet.");
       return;
     }
 
     Clipboard.setString(phraseValue);
     setCopyStatus("Recovery phrase copied to clipboard.");
-    setError("");
   };
 
   const handleContinue = async () => {
-    setError("");
-
     if (!phrase) {
-      setError("No recovery phrase found for this wallet.");
+      Alert.alert("Backup failed", "No recovery phrase found for this wallet.");
       return;
     }
 
     if (!hasSavedPhrase) {
-      setError("Confirm that you saved your recovery phrase.");
+      Alert.alert("Backup failed", "Confirm that you saved your recovery phrase.");
       return;
     }
 
     if (checkWord.trim().toLowerCase() !== expectedWord) {
-      setError(`Word #${verificationIndex + 1} does not match.`);
+      Alert.alert("Backup failed", `Word #${verificationIndex + 1} does not match.`);
       return;
     }
 
@@ -93,7 +89,7 @@ export default function WalletBackupScreen() {
       router.replace("/(auth)/setup-passcode");
     } catch (backupError) {
       const message = backupError instanceof Error ? backupError.message : "Failed to confirm wallet backup.";
-      setError(message);
+      Alert.alert("Backup failed", message);
     } finally {
       setIsSaving(false);
     }
@@ -117,7 +113,7 @@ export default function WalletBackupScreen() {
             <ScrollView
               showsVerticalScrollIndicator
               alwaysBounceVertical
-              keyboardShouldPersistTaps="handled"
+              keyboardShouldPersistTaps="always"
               keyboardDismissMode="interactive"
               contentInsetAdjustmentBehavior="automatic"
               contentContainerStyle={[styles.scrollContent, { paddingBottom: Math.max(24, insets.bottom + 12) }]}
@@ -174,10 +170,7 @@ export default function WalletBackupScreen() {
                 <TextInput
                   style={[s.input, s.inputGap, { marginTop: 12 }]}
                   value={checkWord}
-                  onChangeText={(value) => {
-                    setCheckWord(value);
-                    setError("");
-                  }}
+                  onChangeText={setCheckWord}
                   placeholder={`word #${verificationIndex + 1}`}
                   placeholderTextColor="#a3a3a3"
                   autoCapitalize="none"
@@ -188,7 +181,6 @@ export default function WalletBackupScreen() {
                   style={styles.checkboxRow}
                   onPress={() => {
                     setHasSavedPhrase((value) => !value);
-                    setError("");
                   }}
                 >
                   <View style={[styles.checkbox, hasSavedPhrase && styles.checkboxActive]}>
@@ -197,11 +189,6 @@ export default function WalletBackupScreen() {
                   <Text style={styles.checkboxLabel}>I saved my recovery phrase offline.</Text>
                 </Pressable>
 
-                {!!error ? (
-                  <View style={s.errorBox}>
-                    <Text style={s.errorText}>{error}</Text>
-                  </View>
-                ) : null}
               </View>
             </ScrollView>
           </View>

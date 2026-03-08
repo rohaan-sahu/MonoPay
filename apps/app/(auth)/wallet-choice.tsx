@@ -1,7 +1,7 @@
 import { Redirect, router } from "expo-router";
 import { useState } from "react";
 import { Feather } from "@expo/vector-icons";
-import { ActivityIndicator, Pressable, ScrollView, Text, View } from "react-native";
+import { ActivityIndicator, Alert, Pressable, ScrollView, Text, View } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { cheksAuthScreen as s } from "@mpay/styles/cheksAuthScreen";
 import { identityProvisioningService } from "@mpay/services/identity-provisioning-service";
@@ -12,19 +12,28 @@ import { walletService } from "@mpay/services/wallet-service";
 type WalletOption = "create" | "import";
 
 export default function WalletChoiceScreen() {
-  const { currentUser, linkWalletToUser } = useAuthStore();
+  const { currentUser, linkWalletToUser, signOut } = useAuthStore();
   const [option, setOption] = useState<WalletOption>("create");
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState("");
   const insets = useSafeAreaInsets();
 
   if (!currentUser) {
     return <Redirect href="/(auth)/welcome" />;
   }
 
-  const handleContinue = async () => {
-    setError("");
+  const handleBack = () => {
+    // If wallet setup is incomplete, exit onboarding cleanly instead of leaving
+    // a partially-authenticated session that routes to Home.
+    if (!currentUser.walletAddress) {
+      signOut();
+      router.replace("/(auth)/welcome");
+      return;
+    }
 
+    router.back();
+  };
+
+  const handleContinue = async () => {
     if (option === "import") {
       router.push("/(auth)/wallet-import");
       return;
@@ -85,7 +94,7 @@ export default function WalletChoiceScreen() {
       });
 
       if (!result.ok) {
-        setError(result.error ?? "Failed to link wallet.");
+        Alert.alert("Wallet setup failed", result.error ?? "Failed to link wallet.");
         return;
       }
 
@@ -94,7 +103,7 @@ export default function WalletChoiceScreen() {
     } catch (error) {
       const message = error instanceof Error ? error.message : "Failed to create wallet. Please try again.";
       console.error("[wallet-flow] create:error", error);
-      setError(message);
+      Alert.alert("Wallet setup failed", message);
     } finally {
       setIsLoading(false);
     }
@@ -108,7 +117,7 @@ export default function WalletChoiceScreen() {
 
         <View style={s.content}>
           <View style={s.headerRow}>
-            <Pressable style={s.iconButton} onPress={() => router.back()}>
+            <Pressable style={s.iconButton} onPress={handleBack}>
               <Feather name="arrow-left" size={20} color="#525252" />
             </Pressable>
             <View style={{ width: 48 }} />
@@ -169,11 +178,6 @@ export default function WalletChoiceScreen() {
               </View>
             </Pressable>
 
-            {!!error && (
-              <View style={[s.errorBox, { marginTop: 14 }]}>
-                <Text style={s.errorText}>{error}</Text>
-              </View>
-            )}
           </ScrollView>
         </View>
 

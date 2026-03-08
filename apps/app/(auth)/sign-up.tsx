@@ -1,24 +1,28 @@
 import { router } from "expo-router";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Feather } from "@expo/vector-icons";
-import { ActivityIndicator, Pressable, ScrollView, Text, TextInput, View } from "react-native";
+import { ActivityIndicator, Alert, Platform, Pressable, ScrollView, Text, TextInput, View } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { DismissKeyboard } from "@mpay/components/DismissKeyboard";
 import { useAuthStore } from "@mpay/stores/auth-store";
 import { cheksAuthScreen as s } from "@mpay/styles/cheksAuthScreen";
 
 const TOTAL_STEPS = 5;
+const MWA_ENABLED = (() => {
+  const raw = process.env.EXPO_PUBLIC_MONOPAY_MWA_ENABLED?.trim().toLowerCase();
+  const enabled = raw === "1" || raw === "true" || raw === "yes" || raw === "on";
+  return enabled && Platform.OS === "android";
+})();
 
 export default function SignUpScreen() {
-  const { beginAuth, connectWallet } = useAuthStore();
+  const { beginAuth, connectWallet, connectExternalWallet } = useAuthStore();
   const insets = useSafeAreaInsets();
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState("");
+  const walletConnectInFlight = useRef(false);
 
   const handleSignUp = async () => {
-    setError("");
     setIsLoading(true);
 
     try {
@@ -30,7 +34,7 @@ export default function SignUpScreen() {
       });
 
       if (!result.ok) {
-        setError(result.error ?? "Something went wrong.");
+        Alert.alert("Sign up failed", result.error ?? "Something went wrong.");
         setIsLoading(false);
         return;
       }
@@ -38,28 +42,64 @@ export default function SignUpScreen() {
       setIsLoading(false);
       router.push("/(auth)/otp");
     } catch (error) {
-      setError(error instanceof Error ? error.message : "Could not start sign-up.");
+      Alert.alert("Sign up failed", error instanceof Error ? error.message : "Could not start sign-up.");
       setIsLoading(false);
     }
   };
 
   const handleWalletConnect = async () => {
-    setError("");
+    if (walletConnectInFlight.current) {
+      return;
+    }
+
+    walletConnectInFlight.current = true;
     setIsLoading(true);
 
     try {
       const result = await connectWallet("sign-up");
 
       if (!result.ok) {
-        setError(result.error ?? "Wallet connection failed.");
+        Alert.alert("Wallet connection failed", result.error ?? "Wallet connection failed.");
         return;
       }
 
       router.push("/(auth)/wallet-choice");
     } catch {
-      setError("Wallet connection failed. Please try again.");
+      Alert.alert("Wallet connection failed", "Wallet connection failed. Please try again.");
     } finally {
       setIsLoading(false);
+      walletConnectInFlight.current = false;
+    }
+  };
+
+  const handleExternalWalletConnect = async () => {
+    if (walletConnectInFlight.current) {
+      return;
+    }
+
+    walletConnectInFlight.current = true;
+    setIsLoading(true);
+
+    try {
+      const result = await connectExternalWallet("sign-up");
+
+      if (!result.ok) {
+        Alert.alert("External wallet connection failed", result.error ?? "External wallet connection failed.");
+        return;
+      }
+
+      if (result.needsPasscodeSetup) {
+        router.push("/(auth)/setup-passcode");
+      } else if (result.locked) {
+        router.push("/lock");
+      } else {
+        router.replace("/(tabs)/home");
+      }
+    } catch (error) {
+      Alert.alert("External wallet connection failed", error instanceof Error ? error.message : "External wallet connection failed. Please try again.");
+    } finally {
+      setIsLoading(false);
+      walletConnectInFlight.current = false;
     }
   };
 
@@ -93,7 +133,11 @@ export default function SignUpScreen() {
               <View style={{ width: 48 }} />
             </View>
 
-            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 20 }}>
+            <ScrollView
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="always"
+              contentContainerStyle={{ paddingBottom: 20 }}
+            >
               {/* Heading */}
               <View style={s.headingWrap}>
                 <Text style={s.heading}>
@@ -116,7 +160,7 @@ export default function SignUpScreen() {
                 <TextInput
                   style={s.input}
                   value={fullName}
-                  onChangeText={(v) => { setFullName(v); setError(""); }}
+                  onChangeText={setFullName}
                   placeholder="John"
                   placeholderTextColor="#a3a3a3"
                   autoCapitalize="words"
@@ -138,19 +182,13 @@ export default function SignUpScreen() {
                 <TextInput
                   style={s.input}
                   value={email}
-                  onChangeText={(v) => { setEmail(v); setError(""); }}
+                  onChangeText={setEmail}
                   placeholder="you@example.com"
                   placeholderTextColor="#a3a3a3"
                   keyboardType="email-address"
                   autoCapitalize="none"
                 />
               </View>
-
-              {!!error && (
-                <View style={[s.errorBox, { marginTop: 14 }]}>
-                  <Text style={s.errorText}>{error}</Text>
-                </View>
-              )}
 
               {/* Divider */}
               <View style={[s.dividerRow, { marginTop: 20 }]}>
@@ -160,10 +198,25 @@ export default function SignUpScreen() {
               </View>
 
               {/* Wallet Connect */}
-              <Pressable style={s.walletConnectButton} onPress={handleWalletConnect}>
-                <Feather name="link" size={18} color="#171717" />
+              <Pressable
+                style={[s.walletConnectButton, isLoading && { opacity: 0.6 }]}
+                onPress={handleWalletConnect}
+                disabled={isLoading}
+              >
+                <Feather name="link" size={18} color="#ffffff" />
                 <Text style={s.walletConnectText}>Connect Wallet</Text>
               </Pressable>
+
+              {MWA_ENABLED ? (
+                <Pressable
+                  style={[s.walletConnectButton, { marginTop: 10 }, isLoading && { opacity: 0.6 }]}
+                  onPress={handleExternalWalletConnect}
+                  disabled={isLoading}
+                >
+                  <Feather name="smartphone" size={18} color="#ffffff" />
+                  <Text style={s.walletConnectText}>Connect External Wallet (Beta)</Text>
+                </Pressable>
+              ) : null}
             </ScrollView>
           </View>
 

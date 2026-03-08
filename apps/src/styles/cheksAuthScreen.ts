@@ -68,14 +68,14 @@ export const cheksAuthScreen = StyleSheet.create({
     elevation: 1
   },
   headingWrap: {
-    marginTop: 30,
-    marginBottom: 28
+    marginTop: 20,
+    marginBottom: 20
   },
   heading: {
     color: "#171717",
-    fontSize: 46,
-    lineHeight: 50,
-    letterSpacing: -1.8,
+    fontSize: 36,
+    lineHeight: 40,
+    letterSpacing: -1.4,
     fontWeight: "300",
     fontFamily: displayFont
   },
@@ -106,10 +106,10 @@ export const cheksAuthScreen = StyleSheet.create({
     fontFamily: displayFont
   },
   card: {
-    borderRadius: 24,
+    borderRadius: 20,
     borderWidth: 1,
     borderColor: "#e5e5e5",
-    padding: 22,
+    padding: 16,
     backgroundColor: "#fff",
     shadowColor: "#000",
     shadowOpacity: 0.04,
@@ -120,38 +120,38 @@ export const cheksAuthScreen = StyleSheet.create({
   cardHeader: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 14,
-    marginBottom: 16
+    gap: 12,
+    marginBottom: 12
   },
   cardIconWrap: {
-    width: 48,
-    height: 48,
-    borderRadius: 14,
+    width: 40,
+    height: 40,
+    borderRadius: 12,
     backgroundColor: "#f5f5f5",
     alignItems: "center",
     justifyContent: "center"
   },
   cardTitle: {
     color: "#171717",
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: "600",
     fontFamily: bodyFont
   },
   cardSubtitle: {
     color: "#a3a3a3",
-    fontSize: 12,
-    marginTop: 2,
+    fontSize: 11,
+    marginTop: 1,
     fontFamily: bodyFont
   },
   input: {
-    height: 56,
-    borderRadius: 16,
+    height: 48,
+    borderRadius: 14,
     borderWidth: 1,
     borderColor: "#e5e5e5",
     backgroundColor: "#fafafa",
     paddingHorizontal: 15,
     color: "#171717",
-    fontSize: 17,
+    fontSize: 16,
     letterSpacing: 0,
     fontFamily: bodyFont
   },
@@ -208,17 +208,15 @@ export const cheksAuthScreen = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    gap: 8,
-    height: 48,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: "#e5e5e5",
-    backgroundColor: "#fff"
+    gap: 10,
+    height: 52,
+    borderRadius: 16,
+    backgroundColor: "#171717"
   },
   walletConnectText: {
-    color: "#171717",
-    fontSize: 14,
-    fontWeight: "500",
+    color: "#ffffff",
+    fontSize: 15,
+    fontWeight: "600",
     fontFamily: bodyFont
   },
   footerShell: {

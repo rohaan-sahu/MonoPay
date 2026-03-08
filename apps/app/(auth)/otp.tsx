@@ -1,7 +1,7 @@
 import { router } from "expo-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Feather } from "@expo/vector-icons";
-import { ActivityIndicator, Pressable, Text, TextInput, View } from "react-native";
+import { ActivityIndicator, Alert, Pressable, Text, TextInput, View } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { DismissKeyboard } from "@mpay/components/DismissKeyboard";
 import { useAuthStore } from "@mpay/stores/auth-store";
@@ -13,7 +13,6 @@ export default function OtpScreen() {
   const { pendingAuth, verifyOtp, resendOtp } = useAuthStore();
   const insets = useSafeAreaInsets();
   const [otp, setOtp] = useState<string[]>(Array(OTP_LENGTH).fill(""));
-  const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isResending, setIsResending] = useState(false);
   const [focusedIndex, setFocusedIndex] = useState(0);
@@ -53,7 +52,6 @@ export default function OtpScreen() {
       const newOtp = [...otp];
       newOtp[index] = value.slice(-1);
       setOtp(newOtp);
-      setError("");
 
       if (value && index < OTP_LENGTH - 1) {
         inputRefs.current[index + 1]?.focus();
@@ -74,18 +72,17 @@ export default function OtpScreen() {
   const handleVerify = async () => {
     const code = otp.join("");
     if (code.length !== OTP_LENGTH) {
-      setError("Please enter all 6 digits.");
+      Alert.alert("Verification failed", "Please enter all 6 digits.");
       return;
     }
 
-    setError("");
     const authMode = pendingAuth?.mode;
     setIsSubmitting(true);
     const result = await verifyOtp(code);
     setIsSubmitting(false);
 
     if (!result.ok) {
-      setError(result.error ?? "Unable to verify code.");
+      Alert.alert("Verification failed", result.error ?? "Unable to verify code.");
       setOtp(Array(OTP_LENGTH).fill(""));
       inputRefs.current[0]?.focus();
       return;
@@ -128,13 +125,12 @@ export default function OtpScreen() {
       return;
     }
 
-    setError("");
     setIsResending(true);
     const result = await resendOtp();
     setIsResending(false);
 
     if (!result.ok) {
-      setError(result.error ?? "Could not resend OTP.");
+      Alert.alert("Resend failed", result.error ?? "Could not resend OTP.");
       return;
     }
 
@@ -199,12 +195,6 @@ export default function OtpScreen() {
                 />
               ))}
             </View>
-
-            {!!error && (
-              <View style={[s.errorBox, { marginTop: 16 }]}>
-                <Text style={s.errorText}>{error}</Text>
-              </View>
-            )}
 
             {/* Resend */}
             {resendCountdown > 0 ? (

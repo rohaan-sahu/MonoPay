@@ -52,6 +52,11 @@ npm run start
 - `EXPO_PUBLIC_MONOPAY_ACCOUNT_LINK_MODE=email_phone` (requires SMS provider in Supabase)
 - For email OTP (instead of magic-link), configure Supabase template with `{{ .Token }}`.
 
+## External Wallet (Android Beta)
+
+- Set `EXPO_PUBLIC_MONOPAY_MWA_ENABLED=true` to enable Solana Mobile Wallet Adapter connect buttons on Android auth screens.
+- Current beta scope is connect/auth bootstrap only; embedded wallet flow remains default and unchanged.
+
 ## Identity Auto-Provisioning
 
 - Wallet create/import auto-provisions:

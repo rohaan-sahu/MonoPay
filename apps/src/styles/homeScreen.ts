@@ -13,21 +13,11 @@ export const homeScreen = StyleSheet.create({
     gap: spacing.md,
   },
 
-  /* ── Header: avatar + search + chat ── */
+  /* ── Header ── */
   headerRow: {
     flexDirection: "row",
     alignItems: "center",
     gap: spacing.sm,
-  },
-  avatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: palette.surfaceSoft,
-    borderWidth: 1,
-    borderColor: palette.borderLight,
-    alignItems: "center",
-    justifyContent: "center",
   },
   searchBar: {
     flex: 1,
@@ -45,7 +35,7 @@ export const homeScreen = StyleSheet.create({
     color: palette.textMuted,
     fontSize: typeScale.body,
   },
-  headerIcon: {
+  profileButton: {
     width: 40,
     height: 40,
     borderRadius: 20,
@@ -54,6 +44,11 @@ export const homeScreen = StyleSheet.create({
     borderColor: palette.borderLight,
     alignItems: "center",
     justifyContent: "center",
+  },
+  profileInitials: {
+    color: palette.textPrimary,
+    fontSize: typeScale.small,
+    fontWeight: fontWeight.semibold,
   },
 
   /* ── Balance card (dark gradient) ── */
@@ -209,7 +204,7 @@ export const homeScreen = StyleSheet.create({
     textAlign: "center",
   },
 
-  /* ── Transactions section ── */
+  /* ── Activity section ── */
   txSection: {
     marginTop: spacing.sm,
     borderRadius: radius.lg,
@@ -219,29 +214,38 @@ export const homeScreen = StyleSheet.create({
     padding: spacing.lg,
     gap: spacing.lg,
   },
-  txHeader: {
+
+  /* ── Tab bar ── */
+  tabBar: {
     flexDirection: "row",
-    justifyContent: "space-between",
     alignItems: "center",
   },
-  sectionTitle: {
+  tabItem: {
+    flex: 1,
+    alignItems: "center",
+    gap: 6,
+  },
+  tabLabelActive: {
     color: palette.textPrimary,
-    fontSize: typeScale.title,
-    letterSpacing: -0.4,
+    fontSize: typeScale.body,
+    fontWeight: fontWeight.semibold,
+  },
+  tabLabel: {
+    color: palette.textMuted,
+    fontSize: typeScale.body,
     fontWeight: fontWeight.medium,
   },
-  viewAllButton: {
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: palette.borderLight,
-    backgroundColor: palette.surfaceSoft,
-    paddingHorizontal: spacing.md,
-    paddingVertical: 8,
+  tabIndicatorActive: {
+    height: 3,
+    borderRadius: 1.5,
+    backgroundColor: palette.textPrimary,
+    alignSelf: "stretch",
   },
-  viewAllText: {
-    color: palette.textSecondary,
-    fontSize: typeScale.small,
-    fontWeight: fontWeight.medium,
+  tabIndicator: {
+    height: 3,
+    borderRadius: 1.5,
+    backgroundColor: "transparent",
+    alignSelf: "stretch",
   },
   activityRow: {
     flexDirection: "row",

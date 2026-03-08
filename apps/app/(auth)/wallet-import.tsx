@@ -1,7 +1,7 @@
 import { Redirect, router } from "expo-router";
 import { useMemo, useState } from "react";
 import { Feather } from "@expo/vector-icons";
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { DismissKeyboard } from "@mpay/components/DismissKeyboard";
 import { identityProvisioningService } from "@mpay/services/identity-provisioning-service";
@@ -22,7 +22,6 @@ export default function WalletImportScreen() {
   const [passphrase, setPassphrase] = useState("");
   const [derivationPath, setDerivationPath] = useState(DEFAULT_DERIVATION_PATH);
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState("");
   const [info, setInfo] = useState("");
 
   const isMnemonicMode = mode === "mnemonic";
@@ -43,7 +42,6 @@ export default function WalletImportScreen() {
   }
 
   const handleImport = async () => {
-    setError("");
     setInfo("");
     setIsLoading(true);
 
@@ -107,7 +105,7 @@ export default function WalletImportScreen() {
       router.replace("/(auth)/setup-passcode");
     } catch (importError) {
       const message = importError instanceof Error ? importError.message : "Wallet import failed.";
-      setError(message);
+      Alert.alert("Wallet import failed", message);
     } finally {
       setIsLoading(false);
     }
@@ -128,7 +126,7 @@ export default function WalletImportScreen() {
               <View style={{ width: 48 }} />
             </View>
 
-            <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingBottom: 20 }}>
+            <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="always" contentContainerStyle={{ paddingBottom: 20 }}>
               <View style={s.headingWrap}>
                 <Text style={s.heading}>
                   Import <Text style={s.headingMuted}>wallet</Text>
@@ -146,7 +144,6 @@ export default function WalletImportScreen() {
                     style={[styles.modeChip, mode === item && styles.modeChipActive]}
                     onPress={() => {
                       setMode(item);
-                      setError("");
                     }}
                   >
                     <Text style={[styles.modeChipText, mode === item && styles.modeChipTextActive]}>
@@ -174,7 +171,6 @@ export default function WalletImportScreen() {
                   value={rawInput}
                   onChangeText={(value) => {
                     setRawInput(value);
-                    setError("");
                   }}
                   placeholder={mode === "mnemonic" ? "seed words..." : "paste private key or phrase"}
                   placeholderTextColor="#a3a3a3"
@@ -204,12 +200,6 @@ export default function WalletImportScreen() {
                       autoCorrect={false}
                     />
                   </>
-                ) : null}
-
-                {!!error ? (
-                  <View style={s.errorBox}>
-                    <Text style={s.errorText}>{error}</Text>
-                  </View>
                 ) : null}
 
                 {!!info ? (

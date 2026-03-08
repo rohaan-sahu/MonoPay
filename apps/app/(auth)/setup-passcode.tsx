@@ -1,7 +1,7 @@
 import { Redirect, router } from "expo-router";
 import { useCallback, useState } from "react";
 import { Feather } from "@expo/vector-icons";
-import { Pressable, Text, View } from "react-native";
+import { Alert, Pressable, Text, View } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuthStore } from "@mpay/stores/auth-store";
 import { cheksAuthScreen as s } from "@mpay/styles/cheksAuthScreen";
@@ -14,7 +14,6 @@ export default function SetupPasscodeScreen() {
   const [step, setStep] = useState<"create" | "confirm">("create");
   const [passcode, setPasscode] = useState("");
   const [confirmPasscode, setConfirmPasscode] = useState("");
-  const [error, setError] = useState("");
 
   const currentCode = step === "create" ? passcode : confirmPasscode;
   const setCurrentCode = step === "create" ? setPasscode : setConfirmPasscode;
@@ -22,7 +21,6 @@ export default function SetupPasscodeScreen() {
   const handlePress = useCallback(
     (digit: string) => {
       if (currentCode.length >= PIN_LENGTH) return;
-      setError("");
       const next = currentCode + digit;
       setCurrentCode(next);
 
@@ -32,13 +30,13 @@ export default function SetupPasscodeScreen() {
         } else {
           setTimeout(() => {
             if (next !== passcode) {
-              setError("Passcodes do not match.");
+              Alert.alert("Passcode setup failed", "Passcodes do not match.");
               setConfirmPasscode("");
               return;
             }
             const result = savePasscode(next);
             if (!result.ok) {
-              setError(result.error ?? "Unable to save passcode.");
+              Alert.alert("Passcode setup failed", result.error ?? "Unable to save passcode.");
               setConfirmPasscode("");
               return;
             }
@@ -51,7 +49,6 @@ export default function SetupPasscodeScreen() {
   );
 
   const handleDelete = useCallback(() => {
-    setError("");
     setCurrentCode(currentCode.slice(0, -1));
   }, [currentCode, setCurrentCode]);
 
@@ -59,7 +56,6 @@ export default function SetupPasscodeScreen() {
     if (step === "confirm") {
       setStep("create");
       setConfirmPasscode("");
-      setError("");
     } else {
       router.back();
     }
@@ -121,12 +117,6 @@ export default function SetupPasscodeScreen() {
               </View>
             ))}
           </View>
-
-          {!!error && (
-            <Text style={{ color: "#dc2626", fontSize: 13, textAlign: "left", marginTop: 8 }}>
-              {error}
-            </Text>
-          )}
 
           {/* Spacer pushes numpad toward bottom */}
           <View style={{ flex: 1 }} />

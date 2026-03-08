@@ -50,6 +50,9 @@ export function generateRecoveryPhrase(wordCount = 12) {
   const entropy = new Uint8Array(wordCount);
   fillRandom(entropy);
 
-  const words = Array.from(entropy).map((byte) => RECOVERY_WORDS[byte]);
+  // The local dictionary can be shorter than 256 items during development.
+  // Use modulo lookup so every random byte always maps to a valid word.
+  const dictionarySize = RECOVERY_WORDS.length;
+  const words = Array.from(entropy).map((byte) => RECOVERY_WORDS[byte % dictionarySize]);
   return normalizeRecoveryPhrase(words.join(" "));
 }

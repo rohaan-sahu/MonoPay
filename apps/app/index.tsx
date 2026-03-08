@@ -12,6 +12,10 @@ export default function IndexRoute() {
     return <Redirect href="/(auth)/welcome" />;
   }
 
+  if (!currentUser.walletAddress) {
+    return <Redirect href="/(auth)/wallet-choice" />;
+  }
+
   if (isLocked) {
     return <Redirect href="/lock" />;
   }

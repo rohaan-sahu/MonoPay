@@ -275,10 +275,17 @@ export const profileScreen = StyleSheet.create({
   settingIconDanger: {
     backgroundColor: "rgba(220,38,38,0.08)",
   },
-  settingLabel: {
+  settingContent: {
     flex: 1,
+    justifyContent: "center",
+  },
+  settingContentCentered: {
+    minHeight: 32,
+  },
+  settingLabel: {
     color: palette.textPrimary,
     fontSize: 15,
+    lineHeight: 20,
     fontWeight: fontWeight.medium,
     fontFamily: bodyFont,
   },

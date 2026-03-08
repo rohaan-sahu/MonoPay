@@ -6,6 +6,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Feather } from "@expo/vector-icons";
 import { GradientBackdrop } from "@mpay/components/GradientBackdrop";
 import { identityProvisioningService, OnChainIdentityVerificationResult, WalletIdentityRecord } from "@mpay/services/identity-provisioning-service";
+import { paymentLedgerService } from "@mpay/services/payment-ledger-service";
 import { walletService } from "@mpay/services/wallet-service";
 import { useAuthStore } from "@mpay/stores/auth-store";
 import { profileScreen as s } from "@mpay/styles/profileScreen";
@@ -86,7 +87,7 @@ function SettingRow({
           />
         )}
       </View>
-      <View style={{ flex: 1 }}>
+      <View style={[s.settingContent, !subtitle && s.settingContentCentered]}>
         <Text style={[s.settingLabel, danger && s.settingLabelDanger]}>{label}</Text>
         {subtitle ? <Text style={s.settingMeta}>{subtitle}</Text> : null}
       </View>
@@ -116,6 +117,9 @@ export default function ProfilePage() {
   const [identityRecord, setIdentityRecord] = useState<WalletIdentityRecord | null>(null);
   const [isDevnet, setIsDevnet] = useState(true);
   const [tagCopied, setTagCopied] = useState(false);
+  const [transactionCount, setTransactionCount] = useState(0);
+  const MAINNET_COMING_SOON_MESSAGE =
+    "Mainnet will be enabled after hackathon hardening. This build is locked to Solana Devnet for safe testing.";
 
   useFocusEffect(
     useCallback(() => {
@@ -138,10 +142,20 @@ export default function ProfilePage() {
 
           const walletAddress = currentWalletAddress || storedWallet?.publicKey;
           if (walletAddress) {
-            const identity = await identityProvisioningService.getIdentityForWallet(walletAddress);
-            if (isMounted) setIdentityRecord(identity);
+            const [identity, txCount] = await Promise.all([
+              identityProvisioningService.getIdentityForWallet(walletAddress),
+              paymentLedgerService.fetchWalletTransferCount(walletAddress).catch((error) => {
+                console.warn("[profile] Failed to fetch wallet transfer count:", error);
+                return null;
+              }),
+            ]);
+            if (isMounted) {
+              setIdentityRecord(identity);
+              setTransactionCount(txCount ?? 0);
+            }
           } else if (isMounted) {
             setIdentityRecord(null);
+            setTransactionCount(0);
           }
         } finally {
           if (isMounted) setIsLoadingWalletState(false);
@@ -257,8 +271,8 @@ export default function ProfilePage() {
         {/* ── HEADER CARD ── */}
         <View style={s.headerCard}>
           <View style={s.headerTopRow}>
-            <Pressable style={s.chatIcon} onPress={() => router.push("/(tabs)/chat")}>
-              <Feather name="message-square" size={16} color="#fff" />
+            <Pressable style={s.chatIcon} onPress={() => router.push("/(tabs)/scan")}>
+              <Feather name="maximize" size={16} color="#fff" />
             </Pressable>
           </View>
 
@@ -283,7 +297,7 @@ export default function ProfilePage() {
               <Text style={s.tagPillText}>{tagCopied ? "Copied!" : resolvedTag}</Text>
             </Pressable>
             <View style={s.pointsPill}>
-              <Text style={s.pointsPillText}>462</Text>
+              <Text style={s.pointsPillText}>{transactionCount}</Text>
               <Feather name="zap" size={12} color="#f97316" />
             </View>
           </View>
@@ -344,10 +358,10 @@ export default function ProfilePage() {
               <Feather name="lock" size={14} color="#111" />
               <Text style={s.quickActionText}>Lock</Text>
             </Pressable>
-            <Pressable style={s.quickAction} onPress={() => router.push("/sandbox")}>
+            {/* <Pressable style={s.quickAction} onPress={() => router.push("/sandbox")}>
               <Feather name="code" size={14} color="#111" />
               <Text style={s.quickActionText}>Sandbox</Text>
-            </Pressable>
+            </Pressable> */}
           </View>
         </View>
 
@@ -419,15 +433,18 @@ export default function ProfilePage() {
             <View style={s.settingIcon}>
               <Feather name="globe" size={16} color="#4b5563" />
             </View>
-            <View style={{ flex: 1 }}>
-              <Text style={s.settingLabel}>{isDevnet ? "Devnet" : "Mainnet"}</Text>
-              <Text style={s.settingMeta}>
-                {isDevnet ? "Test network for development" : "Live Solana network"}
-              </Text>
+            <View style={[s.settingContent, s.settingContentCentered]}>
+              <Text style={s.settingLabel}>Devnet</Text>
+              <Text style={s.settingMeta}>Mainnet coming soon (disabled in this build).</Text>
             </View>
             <Switch
               value={!isDevnet}
-              onValueChange={(val) => setIsDevnet(!val)}
+              onValueChange={(val) => {
+                if (val) {
+                  Alert.alert("Mainnet coming soon", MAINNET_COMING_SOON_MESSAGE);
+                }
+                setIsDevnet(true);
+              }}
               trackColor={{ false: "#e5e7eb", true: "#111111" }}
               thumbColor="#fff"
             />

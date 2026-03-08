@@ -308,6 +308,25 @@ class PaymentLedgerService {
 
     return entries;
   }
+
+  async fetchWalletTransferCount(walletAddress: string): Promise<number | null> {
+    const normalizedWallet = normalizeWalletAddress(walletAddress);
+    const { count, error } = await supabase
+      .from("payment_intents")
+      .select("id", { count: "exact", head: true })
+      .eq("sender_wallet_address", normalizedWallet)
+      .in("status", ["submitted", "confirmed"]);
+
+    if (error) {
+      if (isMissingRelationError(error)) {
+        return null;
+      }
+
+      throw new Error(error.message);
+    }
+
+    return typeof count === "number" ? count : 0;
+  }
 }
 
 export const paymentLedgerService = new PaymentLedgerService();

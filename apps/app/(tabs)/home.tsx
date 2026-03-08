@@ -41,6 +41,7 @@ export default function HomeScreen() {
   const [balanceError, setBalanceError] = useState("");
   const [transactionError, setTransactionError] = useState("");
   const [balanceVisible, setBalanceVisible] = useState(false);
+  const [activeTab, setActiveTab] = useState<"transactions" | "people">("transactions");
   const blurAnim = useRef(new Animated.Value(0)).current;
   const current = currencies[currencyIndex];
 
@@ -133,17 +134,18 @@ export default function HomeScreen() {
         contentContainerStyle={s.scrollContent}
         refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={() => void refreshBalances(true)} />}
       >
-        {/* Header: avatar + search + chat */}
+        {/* Header */}
         <View style={s.headerRow}>
-          <View style={s.avatar}>
-            <Feather name="user" size={18} color="#111111" />
-          </View>
-          <Pressable style={s.searchBar} onPress={() => router.push("/send/amount")}>
+          <Pressable style={s.searchBar} onPress={() => router.push("/send/recipient")}>
             <Feather name="search" size={16} color="#9ca3af" />
-            <Text style={s.searchPlaceholder}>Search</Text>
+            <Text style={s.searchPlaceholder}>Find your friends here...</Text>
           </Pressable>
-          <Pressable style={s.headerIcon}>
-            <Feather name="message-circle" size={20} color="#111111" />
+          <Pressable style={s.profileButton} onPress={() => router.push("/(tabs)/profile")}>
+            <Text style={s.profileInitials}>
+              {currentUser?.fullName
+                ? initialsFromLabel(currentUser.fullName)
+                : "MP"}
+            </Text>
           </Pressable>
         </View>
 
@@ -232,36 +234,83 @@ export default function HomeScreen() {
           </View>
         )} */}
 
-        {/* Recent activity */}
+        {/* Activity section with tab switcher */}
         <View style={s.txSection}>
-          <View style={s.txHeader}>
-            <Text style={s.sectionTitle}>Recent activity</Text>
-            <Pressable style={s.viewAllButton} onPress={() => router.push("/(tabs)/chat")}>
-              <Text style={s.viewAllText}>View all</Text>
+          {/* Tab bar */}
+          <View style={s.tabBar}>
+            <Pressable
+              style={s.tabItem}
+              onPress={() => setActiveTab("transactions")}
+            >
+              <Text style={activeTab === "transactions" ? s.tabLabelActive : s.tabLabel}>
+                Transactions
+              </Text>
+              <View style={activeTab === "transactions" ? s.tabIndicatorActive : s.tabIndicator} />
+            </Pressable>
+            <Pressable
+              style={s.tabItem}
+              onPress={() => setActiveTab("people")}
+            >
+              <Text style={activeTab === "people" ? s.tabLabelActive : s.tabLabel}>
+                People
+              </Text>
+              <View style={activeTab === "people" ? s.tabIndicatorActive : s.tabIndicator} />
             </Pressable>
           </View>
 
-          {transactions.length > 0 ? (
-            transactions.map((item) => (
-              <View key={item.id} style={s.activityRow}>
-                <View style={s.activityLeft}>
-                  <View style={s.txAvatar}>
-                    <Text style={s.txAvatarText}>{initialsFromLabel(item.counterpartyLabel)}</Text>
+          {/* Transactions tab */}
+          {activeTab === "transactions" && (
+            <>
+              {transactions.length > 0 ? (
+                transactions.map((item) => (
+                  <View key={item.id} style={s.activityRow}>
+                    <View style={s.activityLeft}>
+                      <View style={s.txAvatar}>
+                        <Text style={s.txAvatarText}>{initialsFromLabel(item.counterpartyLabel)}</Text>
+                      </View>
+                      <View>
+                        <Text style={s.activityName}>{item.counterpartyLabel}</Text>
+                        <Text style={s.activityMeta}>{item.dateLabel}</Text>
+                      </View>
+                    </View>
+                    <Text style={item.incoming ? s.activityAmountIn : s.activityAmountOut}>
+                      {item.amountDisplay}
+                    </Text>
                   </View>
-                  <View>
-                    <Text style={s.activityName}>{item.counterpartyLabel}</Text>
-                    <Text style={s.activityMeta}>{item.dateLabel}</Text>
-                  </View>
-                </View>
-                <Text style={item.incoming ? s.activityAmountIn : s.activityAmountOut}>
-                  {item.amountDisplay}
+                ))
+              ) : (
+                <Text style={s.activityMeta}>
+                  {isRefreshing ? "Refreshing transactions..." : transactionError || "No transactions yet."}
                 </Text>
-              </View>
-            ))
-          ) : (
-            <Text style={s.activityMeta}>
-              {isRefreshing ? "Refreshing transactions..." : transactionError || "No transactions yet."}
-            </Text>
+              )}
+            </>
+          )}
+
+          {/* People tab */}
+          {activeTab === "people" && (
+            <>
+              {recentFriends.length > 0 ? (
+                recentFriends.map((friend) => (
+                  <Pressable
+                    key={friend.label}
+                    style={s.activityRow}
+                    onPress={() => router.push("/send/amount")}
+                  >
+                    <View style={s.activityLeft}>
+                      <View style={s.txAvatar}>
+                        <Text style={s.txAvatarText}>{friend.initials}</Text>
+                      </View>
+                      <Text style={s.activityName}>{friend.label}</Text>
+                    </View>
+                    <Feather name="chevron-right" size={18} color={palette.textMuted} />
+                  </Pressable>
+                ))
+              ) : (
+                <Text style={s.activityMeta}>
+                  {isRefreshing ? "Loading..." : "No recent contacts yet."}
+                </Text>
+              )}
+            </>
           )}
         </View>
       </ScrollView>

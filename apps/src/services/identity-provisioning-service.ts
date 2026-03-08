@@ -173,6 +173,16 @@ function normalizeDisplayName(value?: string) {
   return "MonoPay User";
 }
 
+function isGenericDisplayName(value?: string) {
+  const normalized = value?.trim().toLowerCase();
+
+  if (!normalized) {
+    return true;
+  }
+
+  return normalized === "wallet user" || normalized === "monopay user" || normalized === "user";
+}
+
 function toSupportedNetwork(value: string | undefined): SupportedNetwork {
   if (value === "solana-mainnet" || value === "solana-testnet" || value === "solana-devnet") {
     return value;
@@ -848,7 +858,12 @@ class IdentityProvisioningService {
       }));
 
     const ownerUserId = input.ownerUserId || existingIdentity.ownerUserId;
-    const displayName = normalizeDisplayName(input.displayName || existingIdentity.displayName);
+    const candidateInputDisplayName = input.displayName?.trim();
+    const displayName = normalizeDisplayName(
+      candidateInputDisplayName && !isGenericDisplayName(candidateInputDisplayName)
+        ? candidateInputDisplayName
+        : existingIdentity.displayName || candidateInputDisplayName
+    );
     const nextTagInput = input.desiredMonopayTag ? ensureTagPrefix(input.desiredMonopayTag) : existingIdentity.monopayTag;
     const hasTagChanged = stripTagPrefix(nextTagInput) !== stripTagPrefix(existingIdentity.monopayTag);
     const hasDisplayNameChanged = displayName !== existingIdentity.displayName;
@@ -984,7 +999,12 @@ class IdentityProvisioningService {
     const existingLocal = existingRemote ? null : await this.getLocal(walletAddress);
     const existing = existingRemote || existingLocal;
 
-    const displayName = normalizeDisplayName(input.displayName || existing?.displayName);
+    const candidateInputDisplayName = input.displayName?.trim();
+    const displayName = normalizeDisplayName(
+      candidateInputDisplayName && !isGenericDisplayName(candidateInputDisplayName)
+        ? candidateInputDisplayName
+        : existing?.displayName || candidateInputDisplayName
+    );
     const existingInputTag = input.existingMonopayTag ? ensureTagPrefix(input.existingMonopayTag) : undefined;
     const existingIdentityTag = existing?.monopayTag ? ensureTagPrefix(existing.monopayTag) : undefined;
     const stableTag = existingIdentityTag && !isGenericTag(existingIdentityTag) ? existingIdentityTag : undefined;

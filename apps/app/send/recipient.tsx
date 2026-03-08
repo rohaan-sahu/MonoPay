@@ -1,6 +1,6 @@
 import { router, useLocalSearchParams } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
-import { ActivityIndicator, Pressable, ScrollView, Text, TextInput, View } from "react-native";
+import { ActivityIndicator, Alert, Pressable, ScrollView, Text, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useFocusEffect } from "@react-navigation/native";
 import { Feather } from "@expo/vector-icons";
@@ -55,7 +55,6 @@ export default function RecipientScreen() {
   const [isSearching, setIsSearching] = useState(false);
   const [previewLoading, setPreviewLoading] = useState(false);
   const [recipientPreview, setRecipientPreview] = useState<PayRecipientPreview | null>(null);
-  const [previewError, setPreviewError] = useState("");
   const [recentRecipients, setRecentRecipients] = useState<RecentRecipientItem[]>([]);
   const [recentLoading, setRecentLoading] = useState(true);
 
@@ -67,7 +66,6 @@ export default function RecipientScreen() {
     setSearch("");
     setSuggestions([]);
     setRecipientPreview(null);
-    setPreviewError("");
   };
 
   useEffect(() => {
@@ -163,7 +161,6 @@ export default function RecipientScreen() {
   );
 
   const selectRecipient = async (recipientInput: string) => {
-    setPreviewError("");
     setRecipientPreview(null);
     setPreviewLoading(true);
 
@@ -172,7 +169,7 @@ export default function RecipientScreen() {
       setRecipientPreview(preview);
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Could not load recipient.";
-      setPreviewError(message);
+      Alert.alert("Recipient lookup failed", message);
     } finally {
       setPreviewLoading(false);
     }
@@ -195,7 +192,6 @@ export default function RecipientScreen() {
 
   const dismissPreview = () => {
     setRecipientPreview(null);
-    setPreviewError("");
   };
 
   const placeholder =
@@ -358,16 +354,6 @@ export default function RecipientScreen() {
           <View style={s.previewCard}>
             <ActivityIndicator size="small" color="#9ca3af" />
             <Text style={s.previewLoadingText}>Loading recipient...</Text>
-          </View>
-        )}
-
-        {/* Preview error */}
-        {!previewLoading && previewError !== "" && (
-          <View style={s.previewCard}>
-            <Text style={s.previewErrorText}>{previewError}</Text>
-            <Pressable onPress={dismissPreview}>
-              <Text style={s.previewDismiss}>Dismiss</Text>
-            </Pressable>
           </View>
         )}
 

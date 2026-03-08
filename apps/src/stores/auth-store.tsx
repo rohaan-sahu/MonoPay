@@ -1,6 +1,8 @@
 import { createContext, ReactNode, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { Platform } from "react-native";
 import { supabase } from "@mpay/lib/supabase";
 import { identityProvisioningService } from "@mpay/services/identity-provisioning-service";
+import { mobileWalletAdapterService } from "@mpay/services/mobile-wallet-adapter-service";
 import { web3AuthService } from "@mpay/services/web3-auth-service";
 import { walletService } from "@mpay/services/wallet-service";
 
@@ -60,6 +62,7 @@ type AuthStore = {
   walletConflict: WalletConflict | null;
   beginAuth: (payload: AuthPayload) => Promise<{ ok: boolean; error?: string }>;
   connectWallet: (mode: AuthMode) => Promise<VerifyResult>;
+  connectExternalWallet: (mode: AuthMode) => Promise<VerifyResult>;
   verifyOtp: (code: string) => Promise<VerifyResult>;
   resendOtp: () => Promise<{ ok: boolean; error?: string }>;
   clearDeviceWallet: () => Promise<{ ok: boolean; error?: string }>;
@@ -88,6 +91,11 @@ const AuthContext = createContext<AuthStore | null>(null);
 
 const ACCOUNT_LINK_MODE = process.env.EXPO_PUBLIC_MONOPAY_ACCOUNT_LINK_MODE === "email_phone" ? "email_phone" : "email_only";
 const PHONE_OTP_ENABLED = ACCOUNT_LINK_MODE === "email_phone";
+const MWA_ENABLED = (() => {
+  const raw = process.env.EXPO_PUBLIC_MONOPAY_MWA_ENABLED?.trim().toLowerCase();
+  const enabled = raw === "1" || raw === "true" || raw === "yes" || raw === "on";
+  return enabled && Platform.OS === "android";
+})();
 
 const DEMO_USER: UserProfile = {
   id: "user_demo_1",
@@ -130,6 +138,10 @@ function isValidEmail(email: string) {
 
 function createHandle(name: string) {
   return `@${name.toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 14) || "user"}`;
+}
+
+function createWalletHandleFromAddress(walletAddress: string) {
+  return createHandle(`mono${walletAddress.slice(-6)}`);
 }
 
 function normalizeTag(tag?: string) {
@@ -602,6 +614,97 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           throw error;
         }
       },
+      connectExternalWallet: async (mode) => {
+        const traceId = `mwa-${Date.now().toString(36)}`;
+        console.log("[mwa-flow] store:start", { traceId, mode });
+        setWalletConflict(null);
+
+        if (!MWA_ENABLED || !mobileWalletAdapterService.isEnabled()) {
+          return { ok: false, error: "External wallet connect is not enabled for this build." };
+        }
+
+        try {
+          const authorization = await mobileWalletAdapterService.authorize();
+          const walletAddress = authorization.walletAddress;
+          console.log("[mwa-flow] store:authorized", {
+            traceId,
+            walletAddress,
+            walletUriBase: authorization.walletUriBase,
+            accountLabel: authorization.accountLabel,
+            chain: authorization.chain,
+          });
+
+          if (mode === "sign-in") {
+            let existing = registeredUsersRef.current.find((u) => u.walletAddress === walletAddress);
+
+            if (!existing) {
+              const persisted = await walletService.getStoredUserProfile();
+
+              if (persisted?.walletAddress === walletAddress) {
+                existing = persisted;
+              }
+            }
+
+            if (!existing) {
+              return { ok: false, error: "No account linked to this wallet." };
+            }
+
+            const syncedExisting: UserProfile = {
+              ...existing,
+              walletAddress,
+            };
+
+            setCurrentUser(syncedExisting);
+            setRegisteredUsers((prev) => prev.map((user) => (user.id === syncedExisting.id ? syncedExisting : user)));
+            void walletService.storeUserProfile(syncedExisting).catch((error) => {
+              console.warn("[auth-store] Failed to persist MWA wallet profile:", error);
+            });
+            setPendingAuth(null);
+            setIsLocked(Boolean(syncedExisting.passcode));
+
+            const result = {
+              ok: true,
+              needsPasscodeSetup: !syncedExisting.passcode,
+              locked: Boolean(syncedExisting.passcode),
+            } as const;
+            console.log("[mwa-flow] store:done", { traceId, result });
+            return result;
+          }
+
+          const walletHandle = createWalletHandleFromAddress(walletAddress);
+          const newUser: UserProfile = {
+            id: `user_${Date.now()}`,
+            fullName: "Wallet User",
+            walletAddress,
+            handle: walletHandle,
+            monopayTag: walletHandle,
+          };
+
+          setRegisteredUsers((prev) => [newUser, ...prev]);
+          setCurrentUser(newUser);
+          void walletService.storeUserProfile(newUser).catch((error) => {
+            console.warn("[auth-store] Failed to persist MWA sign-up profile:", error);
+          });
+          setPendingAuth(null);
+          setIsLocked(false);
+
+          const result = {
+            ok: true,
+            needsPasscodeSetup: true,
+            locked: false,
+          } as const;
+          console.log("[mwa-flow] store:done", { traceId, result });
+          return result;
+        } catch (error) {
+          console.error("[mwa-flow] store:exception", {
+            traceId,
+            mode,
+            message: error instanceof Error ? error.message : String(error),
+            stack: error instanceof Error ? error.stack : undefined,
+          });
+          throw error;
+        }
+      },
       verifyOtp: async (code) => {
         if (!pendingAuth) {
           return { ok: false, error: "No active verification request. Start again." };
@@ -969,6 +1072,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setCurrentUser(nextUser);
         setRegisteredUsers((prev) => prev.map((entry) => (entry.id === user.id ? nextUser : entry)));
 
+        if (nextUser.supabaseUserId) {
+          void upsertSupabaseProfile({
+            userId: nextUser.supabaseUserId,
+            fullName: nextUser.fullName,
+            email: nextUser.email,
+            phone: nextUser.phone,
+            monopayTag: nextUser.monopayTag,
+            walletAddress: nextUser.walletAddress,
+            metaplexCardId: nextUser.metaplexCardId,
+          }).catch((error) => {
+            console.warn("[auth-store] Failed to sync edited profile to Supabase:", error);
+          });
+        }
+
         void walletService.storeUserProfile(nextUser).catch((error) => {
           console.warn("[auth-store] Failed to persist profile update:", error);
         });
@@ -1005,6 +1122,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         void walletService.storeUserProfile(updated).catch((error) => {
           console.warn("[auth-store] Failed to persist wallet-linked profile:", error);
         });
+
+        if (updated.supabaseUserId) {
+          void upsertSupabaseProfile({
+            userId: updated.supabaseUserId,
+            fullName: updated.fullName,
+            email: updated.email,
+            phone: updated.phone,
+            monopayTag: updated.monopayTag,
+            walletAddress: updated.walletAddress,
+            metaplexCardId: updated.metaplexCardId,
+          }).catch((error) => {
+            console.warn("[auth-store] Failed to sync wallet-linked profile to Supabase:", error);
+          });
+        }
 
         return { ok: true };
       }

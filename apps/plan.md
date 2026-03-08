@@ -33,15 +33,15 @@
 
 ## Phase 5: Solana Mobile Wallet Adapter (MWA)
 
-- [ ] Phase 5.1 - Foundation and compatibility
-- [ ] Add MWA libraries for Expo React Native (Android-first for hackathon).
-- [ ] Verify deep-link intent filters and app scheme alignment in Expo config.
-- [ ] Keep existing embedded wallet path as fallback (do not break current auth).
+- [x] Phase 5.1 - Foundation and compatibility
+- [x] Add MWA libraries for Expo React Native (Android-first for hackathon).
+- [x] Verify deep-link intent filters and app scheme alignment in Expo config.
+- [x] Keep existing embedded wallet path as fallback (do not break current auth).
 
-- [ ] Phase 5.2 - External wallet connect (read-only bootstrap)
-- [ ] Add "Connect external wallet" option in auth flow.
-- [ ] Implement wallet authorization session and return selected account address.
-- [ ] Persist connection metadata (`provider`, `authToken`, `walletAddress`, `mode=external`).
+- [x] Phase 5.2 - External wallet connect (read-only bootstrap)
+- [x] Add "Connect external wallet" option in auth flow.
+- [x] Implement wallet authorization session and return selected account address.
+- [x] Persist connection metadata (`provider`, `authToken`, `walletAddress`, `mode=external`).
 
 - [ ] Phase 5.3 - Sign-in with Supabase Web3 using MWA signer
 - [ ] Build signer abstraction so Web3 sign-in can use either local keypair or MWA signer.

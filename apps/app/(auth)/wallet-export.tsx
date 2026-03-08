@@ -1,7 +1,7 @@
 import { Redirect, router } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
 import { Feather } from "@expo/vector-icons";
-import { ActivityIndicator, Clipboard, Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, Alert, Clipboard, Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { walletService } from "@mpay/services/wallet-service";
 import { useAuthStore } from "@mpay/stores/auth-store";
@@ -26,18 +26,15 @@ export default function WalletExportScreen() {
   const { currentUser, unlock } = useAuthStore();
   const [isAuthorized, setIsAuthorized] = useState(false);
   const [pinCode, setPinCode] = useState("");
-  const [pinError, setPinError] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [secretKeyBytes, setSecretKeyBytes] = useState<number[] | null>(null);
   const [acknowledged, setAcknowledged] = useState(false);
-  const [error, setError] = useState("");
   const [copyStatus, setCopyStatus] = useState("");
 
   const handlePinPress = useCallback(
     (digit: string) => {
       if (pinCode.length >= PIN_LENGTH) return;
-      setPinError("");
       const next = pinCode + digit;
       setPinCode(next);
 
@@ -45,7 +42,7 @@ export default function WalletExportScreen() {
         setTimeout(() => {
           const result = unlock(next);
           if (!result.ok) {
-            setPinError(result.error ?? "Incorrect passcode.");
+            Alert.alert("Authorization failed", result.error ?? "Incorrect passcode.");
             setPinCode("");
             return;
           }
@@ -57,7 +54,6 @@ export default function WalletExportScreen() {
   );
 
   const handlePinDelete = useCallback(() => {
-    setPinError("");
     setPinCode((p) => p.slice(0, -1));
   }, []);
 
@@ -113,8 +109,6 @@ export default function WalletExportScreen() {
             ))}
           </View>
 
-          {!!pinError && <Text style={pin.error}>{pinError}</Text>}
-
           <View style={{ flex: 1 }} />
 
           <View style={pin.numpad}>
@@ -160,25 +154,22 @@ export default function WalletExportScreen() {
 
   const handleCopyKey = () => {
     if (!secretKeyValue) {
-      setError("No wallet key found on this device.");
+      Alert.alert("Export failed", "No wallet key found on this device.");
       return;
     }
 
     Clipboard.setString(secretKeyValue);
     setCopyStatus("Secret key copied to clipboard.");
-    setError("");
   };
 
   const handleConfirm = async () => {
-    setError("");
-
     if (!secretKeyBytes) {
-      setError("No wallet key found on this device.");
+      Alert.alert("Export failed", "No wallet key found on this device.");
       return;
     }
 
     if (!acknowledged) {
-      setError("Confirm that you saved your wallet secret key.");
+      Alert.alert("Export failed", "Confirm that you saved your wallet secret key.");
       return;
     }
 
@@ -189,7 +180,7 @@ export default function WalletExportScreen() {
       router.back();
     } catch (confirmError) {
       const message = confirmError instanceof Error ? confirmError.message : "Could not update backup status.";
-      setError(message);
+      Alert.alert("Export failed", message);
     } finally {
       setIsSaving(false);
     }
@@ -256,7 +247,6 @@ export default function WalletExportScreen() {
                 style={styles.checkboxRow}
                 onPress={() => {
                   setAcknowledged((value) => !value);
-                  setError("");
                 }}
               >
                 <View style={[styles.checkbox, acknowledged && styles.checkboxActive]}>
@@ -265,11 +255,6 @@ export default function WalletExportScreen() {
                 <Text style={styles.checkboxLabel}>I saved this secret key in a secure offline location.</Text>
               </Pressable>
 
-              {!!error ? (
-                <View style={s.errorBox}>
-                  <Text style={s.errorText}>{error}</Text>
-                </View>
-              ) : null}
             </View>
           </ScrollView>
         </View>

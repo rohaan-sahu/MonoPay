@@ -1,7 +1,7 @@
 import { Redirect, router } from "expo-router";
 import { useState } from "react";
 import { Feather } from "@expo/vector-icons";
-import { ActivityIndicator, Pressable, ScrollView, Text, View } from "react-native";
+import { ActivityIndicator, Alert, Pressable, ScrollView, Text, View } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuthStore } from "@mpay/stores/auth-store";
 import { cheksAuthScreen as s } from "@mpay/styles/cheksAuthScreen";
@@ -18,20 +18,18 @@ export default function WalletConflictScreen() {
   const insets = useSafeAreaInsets();
   const { walletConflict, clearDeviceWallet, signOut } = useAuthStore();
   const [isClearing, setIsClearing] = useState(false);
-  const [error, setError] = useState("");
 
   if (!walletConflict) {
     return <Redirect href="/(auth)/sign-in" />;
   }
 
   const handleRemoveWallet = async () => {
-    setError("");
     setIsClearing(true);
     const result = await clearDeviceWallet();
     setIsClearing(false);
 
     if (!result.ok) {
-      setError(result.error ?? "Could not remove wallet from this device.");
+      Alert.alert("Wallet removal failed", result.error ?? "Could not remove wallet from this device.");
       return;
     }
 
@@ -81,12 +79,6 @@ export default function WalletConflictScreen() {
                 <Text style={[s.cardSubtitle, { marginTop: 10 }]}>Wallet linked to this account</Text>
                 <Text style={s.cardTitle}>{shorten(walletConflict.accountWalletAddress)}</Text>
               </View>
-
-              {!!error ? (
-                <View style={[s.errorBox, { marginTop: 16 }]}>
-                  <Text style={s.errorText}>{error}</Text>
-                </View>
-              ) : null}
 
               <View style={{ marginTop: 18, gap: 10 }}>
                 <Pressable style={s.walletConnectButton} onPress={() => router.replace("/(auth)/wallet-import")}>
