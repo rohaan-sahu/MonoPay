@@ -136,7 +136,21 @@ export default function HomeScreen() {
       >
         {/* Header */}
         <View style={s.headerRow}>
-          <Pressable style={s.searchBar} onPress={() => router.push("/send/recipient")}>
+          <Pressable
+            style={s.searchBar}
+            onPress={() =>
+              router.push({
+                pathname: "/send/recipient",
+                params: {
+                  source: "home_search",
+                  balanceDisplay: current.display,
+                  balanceLabel: current.symbol,
+                  currency: current.symbol,
+                  isStable: current.isStable ? "1" : "0",
+                },
+              })
+            }
+          >
             <Feather name="search" size={16} color="#9ca3af" />
             <Text style={s.searchPlaceholder}>Find your friends here...</Text>
           </Pressable>

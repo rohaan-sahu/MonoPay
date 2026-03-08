@@ -20,7 +20,7 @@
       "package": "com.monopay.app",
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
-        "backgroundColor": "#ffffff"
+        "backgroundColor": "#000000"
       },
       "permissions": [
         "android.permission.CAMERA",

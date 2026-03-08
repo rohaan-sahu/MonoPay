@@ -47,6 +47,9 @@ export default function RecipientScreen() {
     currency: string;
     memo: string;
     isStable: string;
+    source?: string;
+    balanceDisplay?: string;
+    balanceLabel?: string;
   }>();
 
   const [filter, setFilter] = useState<FilterMode>("tag");
@@ -59,7 +62,18 @@ export default function RecipientScreen() {
   const [recentLoading, setRecentLoading] = useState(true);
 
   const symbol = params.isStable === "1" ? "$" : "◎";
-  const displayAmount = params.amount || "0";
+  const numericAmount = Number.parseFloat(params.amount || "");
+  const hasSendAmount = Number.isFinite(numericAmount) && numericAmount > 0;
+  const displayAmount = hasSendAmount ? params.amount : "";
+  const normalizedBalanceLabel = (params.balanceLabel || params.currency || "Available")
+    .split("•")[0]
+    .trim();
+  const headerPrimary = hasSendAmount
+    ? `${symbol}${displayAmount}`
+    : params.balanceDisplay || "Balance";
+  const headerSecondary = hasSendAmount
+    ? params.currency || "Amount"
+    : normalizedBalanceLabel;
 
   const switchFilter = (mode: FilterMode) => {
     setFilter(mode);
@@ -177,6 +191,22 @@ export default function RecipientScreen() {
 
   const confirmRecipient = () => {
     if (!recipientPreview) return;
+
+    if (!hasSendAmount) {
+      router.push({
+        pathname: "/send/amount",
+        params: {
+          recipient: recipientPreview.normalized,
+          recipientName: recipientPreview.displayName || "",
+          source: "recipient",
+          currency: params.currency,
+          isStable: params.isStable,
+          memo: params.memo,
+        },
+      });
+      return;
+    }
+
     router.push({
       pathname: "/send/confirm",
       params: {
@@ -211,11 +241,8 @@ export default function RecipientScreen() {
           </Pressable>
 
           <View style={s.amountSummaryPill}>
-            <Text style={s.amountSummaryText}>
-              {symbol}
-              {displayAmount}
-            </Text>
-            <Text style={s.amountSummaryCurrency}>{params.currency}</Text>
+            <Text style={s.amountSummaryText}>{headerPrimary}</Text>
+            <Text style={s.amountSummaryCurrency}>{headerSecondary}</Text>
           </View>
 
           <Pressable style={s.editAmountButton} onPress={() => router.back()}>
@@ -384,7 +411,9 @@ export default function RecipientScreen() {
             )}
             <Pressable style={s.previewConfirmButton} onPress={confirmRecipient}>
               <Text style={s.previewConfirmText}>
-                Send {symbol}{displayAmount} to {recipientPreview.displayName.split(" ")[0]}
+                {hasSendAmount
+                  ? `Send ${symbol}${displayAmount} to ${recipientPreview.displayName.split(" ")[0]}`
+                  : `Continue with ${recipientPreview.displayName.split(" ")[0]}`}
               </Text>
               <Feather name="arrow-right" size={16} color="#fff" />
             </Pressable>
