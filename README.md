@@ -1,5 +1,7 @@
 # MonoPay (WIP)
 
+# Check the "Ola" branch to get the latest state. That Branch has been used generating the app for the Monolith & MagicBlocks Blitz Weekend hackathon
+
 **Private, Solana-powered social payments.** MonoPay brings the seamless experience of Google Pay (India) to the Solana ecosystem. It combines a high-speed QR payment interface with a private chat layer, allowing users to transact without exposing their account states or transaction history to the public ledger.
 
 ---
