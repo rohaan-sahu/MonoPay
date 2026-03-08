@@ -1,19 +1,20 @@
-import { useCallback, useState } from "react";
-import { Pressable, RefreshControl, ScrollView, Text, View } from "react-native";
+import { useCallback, useMemo, useRef, useState } from "react";
+import { Animated, Pressable, RefreshControl, ScrollView, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Feather } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { useFocusEffect } from "@react-navigation/native";
 import { GradientBackdrop } from "@mpay/components/GradientBackdrop";
+import { BalanceCardGradient } from "@mpay/components/BalanceCardGradient";
 import { fetchWalletBalances, WalletBalanceEntry } from "@mpay/services/wallet-balance-service";
 import { fetchWalletTransactions, WalletTransactionEntry } from "@mpay/services/wallet-transaction-service";
 import { walletService } from "@mpay/services/wallet-service";
 import { useAuthStore } from "@mpay/stores/auth-store";
 import { homeScreen as s } from "@mpay/styles/homeScreen";
+import { palette } from "@mpay/styles/theme";
 
 const FALLBACK_CURRENCIES: WalletBalanceEntry[] = [
   { symbol: "USDC", label: "USDC • Devnet", amount: 0, display: "$0.00", available: "0", isStable: true },
-  { symbol: "USDT", label: "USDT • Devnet", amount: 0, display: "$0.00", available: "0", isStable: true },
   { symbol: "SOL", label: "SOL • Devnet", amount: 0, display: "0.00 SOL", available: "0", isStable: false },
 ];
 
@@ -39,7 +40,19 @@ export default function HomeScreen() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [balanceError, setBalanceError] = useState("");
   const [transactionError, setTransactionError] = useState("");
+  const [balanceVisible, setBalanceVisible] = useState(false);
+  const blurAnim = useRef(new Animated.Value(0)).current;
   const current = currencies[currencyIndex];
+
+  const toggleBalance = () => {
+    const next = !balanceVisible;
+    setBalanceVisible(next);
+    Animated.timing(blurAnim, {
+      toValue: next ? 1 : 0,
+      duration: 200,
+      useNativeDriver: false,
+    }).start();
+  };
 
   const refreshBalances = useCallback(async (forceRefresh = false) => {
     try {
@@ -60,7 +73,7 @@ export default function HomeScreen() {
 
       const [balances, latestTransactions] = await Promise.all([
         fetchWalletBalances(walletAddress, { forceRefresh }),
-        fetchWalletTransactions(walletAddress, { limit: 6, forceRefresh, appOnly: true }),
+        fetchWalletTransactions(walletAddress, { limit: 4, forceRefresh, appOnly: true }),
       ]);
 
       if (!balances.length) {
@@ -97,6 +110,20 @@ export default function HomeScreen() {
     setCurrencyIndex((prev) => (prev + 1) % currencies.length);
   };
 
+  // Derive unique recent contacts from transactions
+  const recentFriends = useMemo(() => {
+    const seen = new Set<string>();
+    const friends: { label: string; initials: string }[] = [];
+    for (const tx of transactions) {
+      const key = tx.counterpartyLabel;
+      if (!key || seen.has(key)) continue;
+      seen.add(key);
+      friends.push({ label: key, initials: initialsFromLabel(key) });
+      if (friends.length >= 6) break;
+    }
+    return friends;
+  }, [transactions]);
+
   return (
     <SafeAreaView style={s.page} edges={["top"]}>
       <GradientBackdrop />
@@ -121,70 +148,96 @@ export default function HomeScreen() {
         </View>
 
         {/* Balance + currency toggle */}
-        <View>
-          <Text style={s.currencyTag}>{current.label}</Text>
-          <View style={s.balanceRow}>
-            <Text style={s.balanceValue}>{current.display}</Text>
-            <Pressable style={s.currencyPill} onPress={cycleCurrency}>
-              <Text style={s.currencyPillText}>{current.symbol}</Text>
-              <Feather name="chevron-down" size={14} color="#111111" />
+        <View style={s.balanceCard}>
+          <BalanceCardGradient />
+          <View style={s.balanceCardHeader}>
+            <Text style={s.balanceLabel}>Balance</Text>
+            <Pressable onPress={toggleBalance} style={s.eyeButton}>
+              <Feather
+                name={balanceVisible ? "eye" : "eye-off"}
+                size={18}
+                color="rgba(255,255,255,0.6)"
+              />
             </Pressable>
           </View>
-          {!!balanceError && <Text style={s.balanceStatus}>{balanceError}</Text>}
-          {isRefreshing && !balanceError ? <Text style={s.balanceStatus}>Refreshing wallet balances...</Text> : null}
-        </View>
+          <View style={s.balanceRow}>
+            <Pressable onPress={toggleBalance} style={s.balanceTouchable}>
+              {balanceVisible ? (
+                <Text style={s.balanceValue}>{current.display}</Text>
+              ) : (
+                <Text style={s.balanceValue}>{'*'.repeat(Math.max(current.display.length, 5))}</Text>
+              )}
+            </Pressable>
+            <Pressable style={s.currencyPillDark} onPress={cycleCurrency}>
+              <Text style={s.currencyPillDarkText}>{current.symbol}</Text>
+              <Feather name="chevron-down" size={14} color="rgba(255,255,255,0.8)" />
+            </Pressable>
+          </View>
+          {!!balanceError && <Text style={s.balanceStatusLight}>{balanceError}</Text>}
+          {isRefreshing && !balanceError ? <Text style={s.balanceStatusLight}>Refreshing wallet balances...</Text> : null}
 
-        {/* Primary action buttons */}
-        <View style={s.primaryRow}>
-          <Pressable style={s.primaryButton} onPress={() => router.push("/send/amount")}>
-            <View style={s.primaryButtonIcon}>
-              <Feather name="arrow-up" size={16} color="#111111" />
-            </View>
-            <Text style={s.primaryButtonLabel}>Send</Text>
-          </Pressable>
-          <Pressable style={s.primaryButton} onPress={() => router.push("/request")}>
-            <View style={s.primaryButtonIcon}>
-              <Feather name="arrow-down" size={16} color="#111111" />
-            </View>
-            <Text style={s.primaryButtonLabel}>Request</Text>
-          </Pressable>
+          {/* Action buttons inside card */}
+          <View style={s.cardActionRow}>
+            <Pressable style={s.cardActionButton} onPress={() => router.push("/send/amount")}>
+              <Feather name="arrow-up-right" size={18} color={palette.white} />
+              <Text style={s.cardActionLabel}>Send</Text>
+            </Pressable>
+            <Pressable style={s.cardActionButton} onPress={() => router.push("/request")}>
+              <Feather name="arrow-down-left" size={18} color={palette.white} />
+              <Text style={s.cardActionLabel}>Request</Text>
+            </Pressable>
+          </View>
         </View>
 
         {/* Quick Access */}
-        <Text style={s.quickAccessHeader}>Quick Access</Text>
         <View style={s.quickAccessRow}>
           <Pressable style={s.quickAccessItem} onPress={() => router.push("/(tabs)/scan")}>
             <View style={s.quickAccessCircle}>
-              <Feather name="camera" size={22} color="#111111" />
+              <Feather name="maximize" size={22} color={palette.textPrimary} />
             </View>
             <Text style={s.quickAccessLabel}>Scan QR</Text>
           </Pressable>
           <Pressable style={s.quickAccessItem} onPress={() => router.push("/send/amount")}>
             <View style={s.quickAccessCircle}>
-              <Feather name="arrow-up-right" size={22} color="#111111" />
+              <Feather name="send" size={20} color={palette.textPrimary} />
             </View>
             <Text style={s.quickAccessLabel}>Send</Text>
           </Pressable>
           <Pressable style={s.quickAccessItem} onPress={() => router.push("/request")}>
             <View style={s.quickAccessCircle}>
-              <Feather name="arrow-down-left" size={22} color="#111111" />
+              <Feather name="download" size={22} color={palette.textPrimary} />
             </View>
             <Text style={s.quickAccessLabel}>Request</Text>
           </Pressable>
-          <Pressable style={s.quickAccessItem} onPress={() => router.push("/(tabs)/scan")}>
-            <View style={s.quickAccessCircle}>
-              <Feather name="maximize" size={22} color="#111111" />
-            </View>
-            <Text style={s.quickAccessLabel}>QR Pay</Text>
-          </Pressable>
         </View>
 
-        {/* Transactions — own background section */}
+        {/* Friends — recent contacts */}
+        {/* {recentFriends.length > 0 && (
+          <View style={s.friendsSection}>
+            <Text style={s.friendsSectionTitle}>Friends</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.friendsScroll}>
+              {recentFriends.map((friend) => (
+                <Pressable
+                  key={friend.label}
+                  style={s.friendItem}
+                  onPress={() => router.push("/send/amount")}
+                >
+                  <View style={s.friendAvatar}>
+                    <Text style={s.friendAvatarText}>{friend.initials}</Text>
+                  </View>
+                  <Text style={s.friendName} numberOfLines={1}>{friend.label}</Text>
+                </Pressable>
+              ))}
+            </ScrollView>
+          </View>
+        )} */}
+
+        {/* Recent activity */}
         <View style={s.txSection}>
           <View style={s.txHeader}>
-            <Text style={s.sectionTitle}>Transactions</Text>
-            <Pressable onPress={() => router.push("/(tabs)/chat")}>
-              <Text style={s.viewAll}>View All</Text>
+            <Text style={s.sectionTitle}>Recent activity</Text>
+            <Pressable style={s.viewAllButton} onPress={() => router.push("/(tabs)/chat")}>
+              <Text style={s.viewAllText}>View all</Text>
             </Pressable>
           </View>
 

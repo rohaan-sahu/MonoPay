@@ -107,6 +107,12 @@ export class SolanaPaymentAdapter implements PaymentAdapter {
     const senderKeypair = input.senderSecretKeyBytes
       ? Keypair.fromSecretKey(Uint8Array.from(input.senderSecretKeyBytes))
       : config.senderKeypair;
+
+    if (!senderKeypair) {
+      throw new Error(
+        "No sender keypair available. Connect a wallet first. Sandbox-only fallback uses EXPO_PUBLIC_MONOPAY_SENDER_SECRET_KEY_JSON."
+      );
+    }
     const toAddress = resolveWalletAddress(input.toHandle, {
       directory: config.handleDirectory,
       fallbackAddress: config.defaultRecipientPublicKey,

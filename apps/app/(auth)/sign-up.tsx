@@ -13,29 +13,34 @@ export default function SignUpScreen() {
   const { beginAuth, connectWallet } = useAuthStore();
   const insets = useSafeAreaInsets();
   const [fullName, setFullName] = useState("");
-  const [phone, setPhone] = useState("");
+  const [email, setEmail] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
 
-  const handleSignUp = () => {
+  const handleSignUp = async () => {
     setError("");
     setIsLoading(true);
 
-    const result = beginAuth({
-      mode: "sign-up",
-      channel: "phone",
-      fullName,
-      phone
-    });
+    try {
+      const result = await beginAuth({
+        mode: "sign-up",
+        channel: "email",
+        fullName,
+        email
+      });
 
-    setIsLoading(false);
+      if (!result.ok) {
+        setError(result.error ?? "Something went wrong.");
+        setIsLoading(false);
+        return;
+      }
 
-    if (!result.ok) {
-      setError(result.error ?? "Something went wrong.");
-      return;
+      setIsLoading(false);
+      router.push("/(auth)/otp");
+    } catch (error) {
+      setError(error instanceof Error ? error.message : "Could not start sign-up.");
+      setIsLoading(false);
     }
-
-    router.push("/(auth)/otp");
   };
 
   const handleWalletConnect = async () => {
@@ -92,7 +97,7 @@ export default function SignUpScreen() {
               {/* Heading */}
               <View style={s.headingWrap}>
                 <Text style={s.heading}>
-                  Let's get <Text style={s.headingMuted}>started</Text>
+                  Let&apos;s get <Text style={s.headingMuted}>started</Text>
                 </Text>
               </View>
 
@@ -118,25 +123,26 @@ export default function SignUpScreen() {
                 />
               </View>
 
-              {/* Phone Card */}
+              {/* Email Card */}
               <View style={s.card}>
                 <View style={s.cardHeader}>
                   <View style={s.cardIconWrap}>
-                    <Feather name="smartphone" size={20} color="#525252" />
+                    <Feather name="mail" size={20} color="#525252" />
                   </View>
                   <View>
-                    <Text style={s.cardTitle}>Phone Number</Text>
-                    <Text style={s.cardSubtitle}>We'll verify with a code</Text>
+                    <Text style={s.cardTitle}>Email Address</Text>
+                    <Text style={s.cardSubtitle}>We&apos;ll verify with a code</Text>
                   </View>
                 </View>
 
                 <TextInput
                   style={s.input}
-                  value={phone}
-                  onChangeText={(v) => { setPhone(v); setError(""); }}
-                  placeholder="+234 810 000 0000"
+                  value={email}
+                  onChangeText={(v) => { setEmail(v); setError(""); }}
+                  placeholder="you@example.com"
                   placeholderTextColor="#a3a3a3"
-                  keyboardType="phone-pad"
+                  keyboardType="email-address"
+                  autoCapitalize="none"
                 />
               </View>
 

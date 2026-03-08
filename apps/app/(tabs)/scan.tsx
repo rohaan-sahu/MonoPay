@@ -3,7 +3,8 @@ import { Button, Pressable, StyleSheet, Text, View, Platform } from "react-nativ
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Feather } from "@expo/vector-icons";
 import { router } from "expo-router";
-import { BarcodeScanningResult, CameraView, useCameraPermissions } from "expo-camera";
+import { BarcodeScanningResult, Camera, CameraView, useCameraPermissions } from "expo-camera";
+import * as ImagePicker from "expo-image-picker";
 import { ensureNotSelfRecipient, parseScannedQrRecipient } from "@mpay/services/qr-payment-service";
 import { useAuthStore } from "@mpay/stores/auth-store";
 import { palette, radius, spacing, typeScale, fontWeight } from "@mpay/styles/theme";
@@ -31,11 +32,39 @@ export default function ScanPayScreen() {
   const [permission, requestPermission] = useCameraPermissions();
   const [flashOn, setFlashOn] = useState(false);
   const [scanEnabled, setScanEnabled] = useState(true);
+  const [isGalleryScanning, setIsGalleryScanning] = useState(false);
   const [scanError, setScanError] = useState("");
   const scanHint = useMemo(() => {
     if (scanError) return scanError;
     return scanEnabled ? "Align QR code within the frame" : "Processing QR code...";
   }, [scanEnabled, scanError]);
+
+  const navigateWithScannedPayload = useCallback(
+    (rawData: string) => {
+      const parsed = parseScannedQrRecipient(rawData);
+      ensureNotSelfRecipient(
+        parsed.recipientInput,
+        currentUser?.walletAddress,
+        currentUser?.monopayTag || currentUser?.handle
+      );
+
+      const recipientName =
+        parsed.displayName ||
+        parsed.monopayTag ||
+        (parsed.walletAddress ? `${parsed.walletAddress.slice(0, 6)}...${parsed.walletAddress.slice(-4)}` : "");
+
+      router.push({
+        pathname: "/send/amount",
+        params: {
+          recipient: parsed.recipientInput,
+          recipientName,
+          source: "qr",
+          ...(parsed.requestedAmount ? { amount: parsed.requestedAmount } : {}),
+        },
+      });
+    },
+    [currentUser?.walletAddress, currentUser?.monopayTag, currentUser?.handle]
+  );
 
   const handleBarcodeScanned = useCallback(
     (result: BarcodeScanningResult) => {
@@ -45,27 +74,7 @@ export default function ScanPayScreen() {
       setScanError("");
 
       try {
-        const parsed = parseScannedQrRecipient(result.data);
-        ensureNotSelfRecipient(
-          parsed.recipientInput,
-          currentUser?.walletAddress,
-          currentUser?.monopayTag || currentUser?.handle
-        );
-
-        const recipientName =
-          parsed.displayName ||
-          parsed.monopayTag ||
-          (parsed.walletAddress ? `${parsed.walletAddress.slice(0, 6)}...${parsed.walletAddress.slice(-4)}` : "");
-
-        router.push({
-          pathname: "/send/amount",
-          params: {
-            recipient: parsed.recipientInput,
-            recipientName,
-            source: "qr",
-            ...(parsed.requestedAmount ? { amount: parsed.requestedAmount } : {}),
-          },
-        });
+        navigateWithScannedPayload(result.data);
       } catch (error) {
         const message = error instanceof Error ? error.message : "Invalid QR code.";
         setScanError(message);
@@ -74,8 +83,50 @@ export default function ScanPayScreen() {
         }, 1400);
       }
     },
-    [scanEnabled, currentUser?.walletAddress, currentUser?.monopayTag, currentUser?.handle]
+    [scanEnabled, navigateWithScannedPayload]
   );
+
+  const handleScanFromGallery = useCallback(async () => {
+    setScanError("");
+    setIsGalleryScanning(true);
+
+    try {
+      const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
+
+      if (!permissionResult.granted) {
+        throw new Error("Gallery permission is required to scan QR from photos.");
+      }
+
+      const picked = await ImagePicker.launchImageLibraryAsync({
+        allowsEditing: false,
+        quality: 1,
+      });
+
+      if (picked.canceled || !picked.assets?.length) {
+        return;
+      }
+
+      const imageUri = picked.assets[0]?.uri;
+
+      if (!imageUri) {
+        throw new Error("Could not read selected image.");
+      }
+
+      const scanned = await Camera.scanFromURLAsync(imageUri, ["qr"]);
+      const qrPayload = scanned?.[0]?.data;
+
+      if (!qrPayload) {
+        throw new Error("No QR code found in selected image.");
+      }
+
+      navigateWithScannedPayload(qrPayload);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unable to scan QR from gallery.";
+      setScanError(message);
+    } finally {
+      setIsGalleryScanning(false);
+    }
+  }, [navigateWithScannedPayload]);
 
   if (!permission) {
     return (
@@ -140,13 +191,19 @@ export default function ScanPayScreen() {
         {/* Bottom actions */}
         <View style={s.bottomSection}>
           <View style={s.bottomCard}>
-            <Pressable style={s.manualButton} onPress={() => router.push("/send/amount")}>
+            <Pressable
+              style={[s.manualButton, isGalleryScanning ? s.manualButtonDisabled : null]}
+              disabled={isGalleryScanning}
+              onPress={() => {
+                void handleScanFromGallery();
+              }}
+            >
               <View style={s.manualButtonIcon}>
-                <Feather name="edit-3" size={18} color={palette.textPrimary} />
+                <Feather name="image" size={18} color={palette.textPrimary} />
               </View>
               <View style={s.manualButtonContent}>
-                <Text style={s.manualButtonTitle}>Enter Manually</Text>
-                <Text style={s.manualButtonSub}>Type a wallet address or tag</Text>
+                <Text style={s.manualButtonTitle}>{isGalleryScanning ? "Scanning..." : "Scan from Gallery"}</Text>
+                <Text style={s.manualButtonSub}>Pick a screenshot or QR image</Text>
               </View>
               <Feather name="chevron-right" size={18} color={palette.textMuted} />
             </Pressable>
@@ -315,6 +372,9 @@ const s = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     paddingVertical: 16,
     gap: spacing.sm,
+  },
+  manualButtonDisabled: {
+    opacity: 0.6,
   },
   manualButtonIcon: {
     width: 40,

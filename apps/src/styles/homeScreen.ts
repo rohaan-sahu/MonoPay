@@ -56,95 +56,109 @@ export const homeScreen = StyleSheet.create({
     justifyContent: "center",
   },
 
-  /* ── Balance ── */
+  /* ── Balance card (dark gradient) ── */
+  balanceCard: {
+    marginTop: spacing.md,
+    borderRadius: radius.lg,
+    overflow: "hidden",
+    padding: spacing.lg,
+  },
+  balanceCardHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: spacing.sm,
+  },
+  balanceLabel: {
+    color: "rgba(255,255,255,0.6)",
+    fontSize: typeScale.small,
+  },
   balanceRow: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
   },
   balanceValue: {
-    color: palette.textPrimary,
-    fontSize: 44,
+    color: palette.white,
+    fontSize: 40,
     letterSpacing: -1.4,
     fontWeight: fontWeight.light,
   },
-  currencyTag: {
-    color: palette.textMuted,
-    fontSize: typeScale.small,
-    marginTop: 2,
-  },
-  balanceStatus: {
-    color: palette.textMuted,
+  balanceStatusLight: {
+    color: "rgba(255,255,255,0.5)",
     fontSize: typeScale.small,
     marginTop: 6,
   },
-  currencyPill: {
+  currencyPillDark: {
     flexDirection: "row",
     alignItems: "center",
     gap: 4,
     borderRadius: radius.lg,
     borderWidth: 1,
-    borderColor: palette.borderLight,
-    backgroundColor: palette.surfaceSoft,
+    borderColor: "rgba(255,255,255,0.15)",
+    backgroundColor: "rgba(255,255,255,0.08)",
     paddingHorizontal: spacing.md,
     paddingVertical: 8,
   },
-  currencyPillText: {
-    color: palette.textPrimary,
+  currencyPillDarkText: {
+    color: "rgba(255,255,255,0.85)",
     fontSize: typeScale.small,
     fontWeight: fontWeight.semibold,
   },
 
-  /* ── Primary action buttons ── */
-  primaryRow: {
+  /* ── Balance toggle ── */
+  balanceTouchable: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  eyeButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: "rgba(255,255,255,0.1)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  /* ── Card action buttons (inside balance card) ── */
+  cardActionRow: {
     flexDirection: "row",
     gap: spacing.sm,
+    marginTop: spacing.lg,
   },
-  primaryButton: {
+  cardActionButton: {
     flex: 1,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    gap: spacing.sm,
+    gap: spacing.xs,
     borderRadius: radius.md,
     borderWidth: 1,
-    borderColor: palette.borderLight,
-    backgroundColor: palette.surfaceLight,
-    paddingVertical: 16,
+    borderColor: "rgba(255,255,255,0.15)",
+    backgroundColor: "rgba(255,255,255,0.08)",
+    paddingVertical: 14,
   },
-  primaryButtonIcon: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: palette.surfaceSoft,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  primaryButtonLabel: {
-    color: palette.textPrimary,
+  cardActionLabel: {
+    color: palette.white,
     fontSize: typeScale.body,
     fontWeight: fontWeight.medium,
   },
 
   /* ── Quick Access ── */
-  quickAccessHeader: {
-    color: palette.textPrimary,
-    fontSize: typeScale.title,
-    letterSpacing: -0.4,
-    fontWeight: fontWeight.medium,
-  },
   quickAccessRow: {
     flexDirection: "row",
-    justifyContent: "space-between",
+    justifyContent: "center",
+    gap: spacing.xl,
+    marginTop: spacing.xs,
   },
   quickAccessItem: {
     alignItems: "center",
     gap: spacing.xs,
   },
   quickAccessCircle: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
+    width: 54,
+    height: 54,
+    borderRadius: 27,
     backgroundColor: palette.surfaceLight,
     borderWidth: 1,
     borderColor: palette.borderLight,
@@ -152,13 +166,52 @@ export const homeScreen = StyleSheet.create({
     justifyContent: "center",
   },
   quickAccessLabel: {
-    color: palette.textMuted,
+    color: palette.textSecondary,
     fontSize: typeScale.small,
+    fontWeight: fontWeight.medium,
+  },
+
+  /* ── Friends section ── */
+  friendsSection: {
+    gap: spacing.sm,
+  },
+  friendsSectionTitle: {
+    color: palette.textPrimary,
+    fontSize: typeScale.body,
+    fontWeight: fontWeight.semibold,
+  },
+  friendsScroll: {
+    gap: spacing.md,
+  },
+  friendItem: {
+    alignItems: "center",
+    gap: spacing.xs,
+    width: 64,
+  },
+  friendAvatar: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: palette.surfaceSoft,
+    borderWidth: 1,
+    borderColor: palette.borderLight,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  friendAvatarText: {
+    color: palette.textSecondary,
+    fontSize: typeScale.small,
+    fontWeight: fontWeight.semibold,
+  },
+  friendName: {
+    color: palette.textMuted,
+    fontSize: typeScale.tiny,
+    textAlign: "center",
   },
 
   /* ── Transactions section ── */
   txSection: {
-    marginTop: spacing.md,
+    marginTop: spacing.sm,
     borderRadius: radius.lg,
     borderWidth: 1,
     borderColor: palette.borderLight,
@@ -177,9 +230,18 @@ export const homeScreen = StyleSheet.create({
     letterSpacing: -0.4,
     fontWeight: fontWeight.medium,
   },
-  viewAll: {
-    color: palette.textMuted,
+  viewAllButton: {
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: palette.borderLight,
+    backgroundColor: palette.surfaceSoft,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 8,
+  },
+  viewAllText: {
+    color: palette.textSecondary,
     fontSize: typeScale.small,
+    fontWeight: fontWeight.medium,
   },
   activityRow: {
     flexDirection: "row",

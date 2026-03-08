@@ -379,6 +379,12 @@ export class MagicBlockPrivatePaymentAdapter implements PaymentAdapter {
     const sender = input.senderSecretKeyBytes
       ? Keypair.fromSecretKey(Uint8Array.from(input.senderSecretKeyBytes))
       : paymentConfig.senderKeypair;
+
+    if (!sender) {
+      throw new Error(
+        "No sender keypair available. Connect a wallet first. Sandbox-only fallback uses EXPO_PUBLIC_MONOPAY_SENDER_SECRET_KEY_JSON."
+      );
+    }
     const recipient = new PublicKey(input.toHandle.trim());
     const mint = resolveUsdcMint(paymentConfig.rpcUrl);
     const mintInfo = await getMint(connection, mint, "confirmed");

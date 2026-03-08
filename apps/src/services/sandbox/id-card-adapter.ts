@@ -1,7 +1,9 @@
 import { burn, create, mplCore, safeFetchAssetV1, updatePlugin } from "@metaplex-foundation/mpl-core";
 import { generateSigner, keypairIdentity, publicKey } from "@metaplex-foundation/umi";
 import { createUmi } from "@metaplex-foundation/umi-bundle-defaults";
+import { Keypair } from "@solana/web3.js";
 import { getMetaplexConfig, resolveWalletAddress } from "@mpay/services/sandbox/env";
+import { walletService } from "@mpay/services/wallet-service";
 import {
   CreateIdCardInput,
   IdCardAdapter,
@@ -108,20 +110,41 @@ function getAttributeValue(attributeList: AssetAttribute[], key: string, fallbac
 export class MetaplexIdCardAdapter implements IdCardAdapter {
   private config: ReturnType<typeof getMetaplexConfig> | null = null;
   private umi: ReturnType<typeof createUmi> | null = null;
+  private signerPublicKey: string | null = null;
   private cards = new Map<string, IdCardRecord>();
 
-  private getClient() {
-    if (this.config && this.umi) {
+  private async resolveSignerSecretKey(config: ReturnType<typeof getMetaplexConfig>) {
+    if (config.signerSecretKey) {
+      return config.signerSecretKey;
+    }
+
+    const keypair = await walletService.getKeypair();
+
+    if (keypair) {
+      return keypair.secretKey;
+    }
+
+    throw new Error(
+      "No signer keypair available for ID card operations. Connect a wallet first. Sandbox-only fallback uses EXPO_PUBLIC_MONOPAY_SENDER_SECRET_KEY_JSON."
+    );
+  }
+
+  private async getClient() {
+    const config = getMetaplexConfig();
+    const signerSecretKey = await this.resolveSignerSecretKey(config);
+    const signerPublicKey = Keypair.fromSecretKey(Uint8Array.from(signerSecretKey)).publicKey.toBase58();
+
+    if (this.config && this.umi && this.signerPublicKey === signerPublicKey && this.config.rpcUrl === config.rpcUrl) {
       return { config: this.config, umi: this.umi };
     }
 
-    const config = getMetaplexConfig();
     const umi = createUmi(config.rpcUrl).use(mplCore());
-    const signer = umi.eddsa.createKeypairFromSecretKey(config.signerSecretKey);
+    const signer = umi.eddsa.createKeypairFromSecretKey(signerSecretKey);
     umi.use(keypairIdentity(signer));
 
     this.config = config;
     this.umi = umi;
+    this.signerPublicKey = signerPublicKey;
 
     return { config, umi };
   }
@@ -154,8 +177,11 @@ export class MetaplexIdCardAdapter implements IdCardAdapter {
     throw new Error(`Asset ${assetAddress} was not visible after ${maxAttempts} polling attempts.`);
   }
 
-  private buildCardFromAsset(asset: AssetLike, fallback?: Partial<IdCardRecord>) {
-    const { config } = this.getClient();
+  private buildCardFromAsset(
+    asset: AssetLike,
+    config: ReturnType<typeof getMetaplexConfig>,
+    fallback?: Partial<IdCardRecord>
+  ) {
     const attributeList = Array.isArray(asset.attributes?.attributeList) ? asset.attributes.attributeList : [];
     const fetchedCardId = toStringValue(asset.publicKey);
     const fetchedOwner = toStringValue(asset.owner);
@@ -207,7 +233,7 @@ export class MetaplexIdCardAdapter implements IdCardAdapter {
 
   async createCard(input: CreateIdCardInput): Promise<IdCardRecord> {
     assertCreateInput(input);
-    const { config, umi } = this.getClient();
+    const { config, umi } = await this.getClient();
 
     const ownerAddress = resolveWalletAddress(input.owner, {
       directory: config.handleDirectory,
@@ -253,7 +279,7 @@ export class MetaplexIdCardAdapter implements IdCardAdapter {
       signature,
     });
     const fetched = await this.waitForAssetAvailability(umi, card.cardId);
-    const syncedCard = this.buildCardFromAsset(fetched as AssetLike, {
+    const syncedCard = this.buildCardFromAsset(fetched as AssetLike, config, {
       ...card,
       lastSyncAt: syncedAt,
       lastTxSignature: signature,
@@ -269,10 +295,10 @@ export class MetaplexIdCardAdapter implements IdCardAdapter {
   }
 
   async updatePluginField(input: UpdatePluginFieldInput): Promise<IdCardRecord> {
-    const { umi, config } = this.getClient();
+    const { umi, config } = await this.getClient();
     const cachedCard = this.cards.get(input.cardId);
     const fetchedBeforeUpdate = await this.waitForAssetAvailability(umi, input.cardId);
-    const card = this.buildCardFromAsset(fetchedBeforeUpdate as AssetLike, {
+    const card = this.buildCardFromAsset(fetchedBeforeUpdate as AssetLike, config, {
       ...cachedCard,
       cardId: input.cardId,
       status: cachedCard?.status || "active",
@@ -323,7 +349,7 @@ export class MetaplexIdCardAdapter implements IdCardAdapter {
       syncedAt,
     });
     const fetchedAfterUpdate = await this.waitForAssetAvailability(umi, updatedCard.cardId);
-    const syncedCard = this.buildCardFromAsset(fetchedAfterUpdate as AssetLike, {
+    const syncedCard = this.buildCardFromAsset(fetchedAfterUpdate as AssetLike, config, {
       ...updatedCard,
       lastSyncAt: syncedAt,
       lastTxSignature: signature,
@@ -340,10 +366,10 @@ export class MetaplexIdCardAdapter implements IdCardAdapter {
   }
 
   async deactivateCard(input: { cardId: string; reason?: string }): Promise<IdCardRecord> {
-    const { umi, config } = this.getClient();
+    const { umi, config } = await this.getClient();
     const cachedCard = this.cards.get(input.cardId);
     const fetchedBeforeBurn = await this.waitForAssetAvailability(umi, input.cardId);
-    const existing = this.buildCardFromAsset(fetchedBeforeBurn as AssetLike, {
+    const existing = this.buildCardFromAsset(fetchedBeforeBurn as AssetLike, config, {
       ...cachedCard,
       cardId: input.cardId,
       status: cachedCard?.status || "active",
@@ -382,7 +408,7 @@ export class MetaplexIdCardAdapter implements IdCardAdapter {
       return cachedCard;
     }
 
-    const { umi, config } = this.getClient();
+    const { umi, config } = await this.getClient();
     const fetched = await this.waitForAssetAvailability(umi, cardId, {
       maxAttempts: QUICK_FETCH_MAX_ATTEMPTS,
       delayMs: QUICK_FETCH_DELAY_MS,
@@ -392,7 +418,7 @@ export class MetaplexIdCardAdapter implements IdCardAdapter {
       return null;
     }
 
-    const card = this.buildCardFromAsset(fetched as AssetLike, {
+    const card = this.buildCardFromAsset(fetched as AssetLike, config, {
       cardId,
       status: "active",
       network: inferNetwork(config.rpcUrl),

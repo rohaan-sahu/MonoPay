@@ -60,28 +60,39 @@ export default function WalletImportScreen() {
         throw new Error("Wallet mismatch after Web3 authentication.");
       }
 
-      const identity = await identityProvisioningService.ensureIdentityForWallet({
-        walletAddress: imported.wallet.publicKey,
-        ownerUserId: web3Auth.userId,
-        displayName: currentUser.fullName,
-        phone: currentUser.phone,
-        email: currentUser.email,
-        preferredTag: currentUser.monopayTag || currentUser.handle,
-        existingMonopayTag: currentUser.monopayTag,
-        existingMetaplexCardId: currentUser.metaplexCardId,
-        existingMetaplexCardStatus: currentUser.metaplexCardStatus,
-        existingMetaplexNetwork: currentUser.metaplexNetwork,
-      });
+      let identity:
+        | Awaited<ReturnType<typeof identityProvisioningService.ensureIdentityForWallet>>
+        | null = null;
+
+      try {
+        identity = await identityProvisioningService.ensureIdentityForWallet({
+          walletAddress: imported.wallet.publicKey,
+          ownerUserId: web3Auth.userId,
+          displayName: currentUser.fullName,
+          phone: currentUser.phone,
+          email: currentUser.email,
+          preferredTag: currentUser.monopayTag || currentUser.handle,
+          existingMonopayTag: currentUser.monopayTag,
+          existingMetaplexCardId: currentUser.metaplexCardId,
+          existingMetaplexCardStatus: currentUser.metaplexCardStatus,
+          existingMetaplexNetwork: currentUser.metaplexNetwork,
+        });
+      } catch (identityError) {
+        console.warn("[wallet-flow] import:identity:warn", {
+          walletAddress: imported.wallet.publicKey,
+          message: identityError instanceof Error ? identityError.message : String(identityError),
+        });
+      }
 
       const linked = linkWalletToUser(imported.wallet.publicKey, {
         supabaseUserId: web3Auth.userId,
-        monopayTag: identity.monopayTag,
-        metaplexCardId: identity.metaplexCardId,
-        metaplexCardStatus: identity.metaplexCardStatus,
-        metaplexNetwork: identity.metaplexNetwork,
-        metaplexSyncStatus: identity.metaplexSyncStatus,
-        metaplexLastSyncAt: identity.metaplexLastSyncAt,
-        metaplexLastTxSignature: identity.metaplexLastTxSignature,
+        monopayTag: identity?.monopayTag,
+        metaplexCardId: identity?.metaplexCardId,
+        metaplexCardStatus: identity?.metaplexCardStatus,
+        metaplexNetwork: identity?.metaplexNetwork,
+        metaplexSyncStatus: identity?.metaplexSyncStatus || "failed",
+        metaplexLastSyncAt: identity?.metaplexLastSyncAt,
+        metaplexLastTxSignature: identity?.metaplexLastTxSignature,
       });
 
       if (!linked.ok) {

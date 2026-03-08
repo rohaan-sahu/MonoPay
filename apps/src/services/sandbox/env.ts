@@ -151,12 +151,23 @@ export function getSolanaSignerSecretKey() {
   return parseSecretKeyJson(raw, "EXPO_PUBLIC_MONOPAY_SENDER_SECRET_KEY_JSON");
 }
 
+function getOptionalSolanaSignerSecretKey() {
+  const raw = optionalEnv("EXPO_PUBLIC_MONOPAY_SENDER_SECRET_KEY_JSON");
+
+  if (!raw) {
+    return undefined;
+  }
+
+  return parseSecretKeyJson(raw, "EXPO_PUBLIC_MONOPAY_SENDER_SECRET_KEY_JSON");
+}
+
 export function getPaymentConfig() {
   const directory = getHandleDirectory();
+  const signerSecretKey = getOptionalSolanaSignerSecretKey();
 
   return {
     rpcUrl: optionalEnv("EXPO_PUBLIC_MONOPAY_RPC_URL") || DEFAULT_RPC_URL,
-    senderKeypair: getSolanaSignerKeypair(),
+    senderKeypair: signerSecretKey ? Keypair.fromSecretKey(signerSecretKey) : undefined,
     lamportsPerUsd: parseLamportsPerUsd(optionalEnv("EXPO_PUBLIC_MONOPAY_LAMPORTS_PER_USD")),
     defaultRecipientPublicKey: optionalEnv("EXPO_PUBLIC_MONOPAY_DEFAULT_RECIPIENT_PUBLIC_KEY"),
     handleDirectory: directory
@@ -188,10 +199,11 @@ export function getMetaplexConfig() {
   const directory = getHandleDirectory();
   const fallbackOwner = optionalEnv("EXPO_PUBLIC_MONOPAY_IDCARD_OWNER_PUBLIC_KEY");
   const derivedMetadataUri = buildSupabasePublicUrl(DEFAULT_ID_CARD_METADATA_PATH);
+  const signerSecretKey = getOptionalSolanaSignerSecretKey();
 
   return {
     rpcUrl: optionalEnv("EXPO_PUBLIC_MONOPAY_RPC_URL") || DEFAULT_RPC_URL,
-    signerSecretKey: getSolanaSignerSecretKey(),
+    signerSecretKey,
     metadataUri: optionalEnv("EXPO_PUBLIC_MONOPAY_IDCARD_METADATA_URI") || derivedMetadataUri || DEFAULT_ID_CARD_METADATA_URI,
     defaultOwnerPublicKey: fallbackOwner,
     handleDirectory: directory

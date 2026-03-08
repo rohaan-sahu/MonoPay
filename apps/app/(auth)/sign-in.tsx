@@ -8,36 +8,42 @@ import { useAuthStore } from "@mpay/stores/auth-store";
 import { cheksAuthScreen as s } from "@mpay/styles/cheksAuthScreen";
 
 type Tab = "phone" | "email";
+const PHONE_OTP_ENABLED = process.env.EXPO_PUBLIC_MONOPAY_ACCOUNT_LINK_MODE === "email_phone";
 
 export default function SignInScreen() {
   const { beginAuth, connectWallet } = useAuthStore();
   const insets = useSafeAreaInsets();
-  const [tab, setTab] = useState<Tab>("phone");
+  const [tab, setTab] = useState<Tab>(PHONE_OTP_ENABLED ? "phone" : "email");
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
   const walletConnectInFlight = useRef(false);
 
-  const handleSignIn = () => {
+  const handleSignIn = async () => {
     setError("");
     setIsLoading(true);
 
-    const result = beginAuth({
-      mode: "sign-in",
-      channel: tab,
-      phone: tab === "phone" ? phone : undefined,
-      email: tab === "email" ? email : undefined
-    });
+    try {
+      const result = await beginAuth({
+        mode: "sign-in",
+        channel: tab,
+        phone: tab === "phone" ? phone : undefined,
+        email: tab === "email" ? email : undefined
+      });
 
-    setIsLoading(false);
+      if (!result.ok) {
+        setError(result.error ?? "Something went wrong.");
+        setIsLoading(false);
+        return;
+      }
 
-    if (!result.ok) {
-      setError(result.error ?? "Something went wrong.");
-      return;
+      setIsLoading(false);
+      router.push("/(auth)/otp");
+    } catch (error) {
+      setError(error instanceof Error ? error.message : "Could not start sign-in.");
+      setIsLoading(false);
     }
-
-    router.push("/(auth)/otp");
   };
 
   const handleWalletConnect = async () => {
@@ -115,13 +121,26 @@ export default function SignInScreen() {
 
               {/* Tabs */}
               <View style={s.tabRow}>
-                <Pressable onPress={() => { setTab("phone"); setError(""); }}>
+                <Pressable
+                  disabled={!PHONE_OTP_ENABLED}
+                  style={!PHONE_OTP_ENABLED ? { opacity: 0.55 } : undefined}
+                  onPress={() => {
+                    if (!PHONE_OTP_ENABLED) {
+                      setError("Phone OTP is disabled for now. Use email.");
+                      return;
+                    }
+                    setTab("phone");
+                    setError("");
+                  }}
+                >
                   <Text style={tab === "phone" ? s.tabActive : s.tabInactive}>Phone</Text>
                 </Pressable>
                 <Pressable onPress={() => { setTab("email"); setError(""); }}>
                   <Text style={tab === "email" ? s.tabActive : s.tabInactive}>Email</Text>
                 </Pressable>
               </View>
+
+              {!PHONE_OTP_ENABLED ? <Text style={[s.cardSubtitle, { marginBottom: 10 }]}>Phone OTP coming soon</Text> : null}
 
               {/* Input Card */}
               <View style={s.card}>
@@ -205,7 +224,7 @@ export default function SignInScreen() {
             </View>
 
             <Text style={s.bottomLink}>
-              Don't have an account?{" "}
+              Don&apos;t have an account?{" "}
               <Text style={s.bottomLinkAccent} onPress={() => router.replace("/(auth)/sign-up")}>
                 Sign up
               </Text>

@@ -21,7 +21,7 @@ const displayFont = Platform.select({
 });
 
 export default function LockScreen() {
-  const { currentUser, isLocked, signOut, unlock } = useAuthStore();
+  const { currentUser, isHydrating, isLocked, signOut, unlock } = useAuthStore();
   const [passcode, setPasscode] = useState("");
   const [error, setError] = useState("");
 
@@ -51,6 +51,10 @@ export default function LockScreen() {
     setError("");
     setPasscode((p) => p.slice(0, -1));
   }, []);
+
+  if (isHydrating) {
+    return null;
+  }
 
   if (!currentUser) {
     return <Redirect href="/(auth)/welcome" />;

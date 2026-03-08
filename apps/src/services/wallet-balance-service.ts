@@ -26,7 +26,7 @@ const BALANCE_CACHE_TTL_MS = 15_000;
 const balanceCache = new Map<string, { expiresAt: number; value: WalletBalanceEntry[] }>();
 
 type StablecoinDefinition = {
-  symbol: "USDC" | "USDT";
+  symbol: "USDC";
   envMint?: string;
   defaultMints: Partial<Record<ClusterName, string>>;
 };
@@ -38,13 +38,6 @@ const STABLECOIN_DEFINITIONS: StablecoinDefinition[] = [
     defaultMints: {
       devnet: "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
       "mainnet-beta": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
-    },
-  },
-  {
-    symbol: "USDT",
-    envMint: process.env.EXPO_PUBLIC_MONOPAY_USDT_MINT,
-    defaultMints: {
-      "mainnet-beta": "Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB",
     },
   },
 ];
@@ -86,7 +79,7 @@ function formatStableDisplay(amount: number) {
 }
 
 function formatSolDisplay(amount: number) {
-  return `${formatTokenAmount(amount, { min: 2, max: 6 })} SOL`;
+  return `${formatTokenAmount(amount, { min: 2, max: 2 })} SOL`;
 }
 
 function cloneBalances(entries: WalletBalanceEntry[]) {

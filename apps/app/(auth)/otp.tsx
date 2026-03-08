@@ -10,10 +10,12 @@ import { cheksAuthScreen as s } from "@mpay/styles/cheksAuthScreen";
 const OTP_LENGTH = 6;
 
 export default function OtpScreen() {
-  const { pendingAuth, verifyOtp } = useAuthStore();
+  const { pendingAuth, verifyOtp, resendOtp } = useAuthStore();
   const insets = useSafeAreaInsets();
   const [otp, setOtp] = useState<string[]>(Array(OTP_LENGTH).fill(""));
   const [error, setError] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isResending, setIsResending] = useState(false);
   const [focusedIndex, setFocusedIndex] = useState(0);
   const [resendCountdown, setResendCountdown] = useState(40);
   const inputRefs = useRef<(TextInput | null)[]>([]);
@@ -69,7 +71,7 @@ export default function OtpScreen() {
     [otp]
   );
 
-  const handleVerify = () => {
+  const handleVerify = async () => {
     const code = otp.join("");
     if (code.length !== OTP_LENGTH) {
       setError("Please enter all 6 digits.");
@@ -78,12 +80,29 @@ export default function OtpScreen() {
 
     setError("");
     const authMode = pendingAuth?.mode;
-    const result = verifyOtp(code);
+    setIsSubmitting(true);
+    const result = await verifyOtp(code);
+    setIsSubmitting(false);
 
     if (!result.ok) {
       setError(result.error ?? "Unable to verify code.");
       setOtp(Array(OTP_LENGTH).fill(""));
       inputRefs.current[0]?.focus();
+      return;
+    }
+
+    if (result.needsWalletConflictResolution) {
+      router.replace("/(auth)/wallet-conflict");
+      return;
+    }
+
+    if (result.needsWalletImport) {
+      router.replace("/(auth)/wallet-import");
+      return;
+    }
+
+    if (result.needsWalletSetup) {
+      router.replace("/(auth)/wallet-choice");
       return;
     }
 
@@ -102,6 +121,24 @@ export default function OtpScreen() {
     }
 
     router.replace("/(tabs)/home");
+  };
+
+  const handleResend = async () => {
+    if (resendCountdown > 0 || isResending) {
+      return;
+    }
+
+    setError("");
+    setIsResending(true);
+    const result = await resendOtp();
+    setIsResending(false);
+
+    if (!result.ok) {
+      setError(result.error ?? "Could not resend OTP.");
+      return;
+    }
+
+    setResendCountdown(40);
   };
 
   if (!pendingAuth) {
@@ -141,7 +178,6 @@ export default function OtpScreen() {
               <Text style={[s.cardSubtitle, { marginTop: 12, fontSize: 14 }]}>
                 We sent a 6-digit code to {targetLabel}
               </Text>
-              <Text style={[s.helperText, { marginTop: 6, marginBottom: 0 }]}>DEMO CODE: 123456</Text>
             </View>
 
             {/* OTP Cells */}
@@ -176,9 +212,9 @@ export default function OtpScreen() {
                 Resend code in <Text style={s.resendAccent}>{resendCountdown}s</Text>
               </Text>
             ) : (
-              <Pressable onPress={() => setResendCountdown(40)}>
+              <Pressable onPress={handleResend} disabled={isResending}>
                 <Text style={[s.resendText, s.resendAccent, { textDecorationLine: "underline" }]}>
-                  Resend code
+                  {isResending ? "Sending..." : "Resend code"}
                 </Text>
               </Pressable>
             )}
@@ -189,11 +225,15 @@ export default function OtpScreen() {
             <View style={s.footer}>
               <Text style={[s.footerTitle, { fontSize: 22 }]}>Verify</Text>
               <Pressable
-                style={[s.ctaButton, otp.join("").length !== OTP_LENGTH && s.ctaButtonDisabled]}
+                style={[s.ctaButton, (otp.join("").length !== OTP_LENGTH || isSubmitting) && s.ctaButtonDisabled]}
                 onPress={handleVerify}
-                disabled={otp.join("").length !== OTP_LENGTH}
+                disabled={otp.join("").length !== OTP_LENGTH || isSubmitting}
               >
-                <Feather name="arrow-right" size={24} color="#171717" />
+                {isSubmitting ? (
+                  <ActivityIndicator size="small" color="#171717" />
+                ) : (
+                  <Feather name="arrow-right" size={24} color="#171717" />
+                )}
               </Pressable>
             </View>
           </View>

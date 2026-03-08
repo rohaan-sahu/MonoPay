@@ -1,7 +1,8 @@
-import { router } from "expo-router";
+import { Redirect, router } from "expo-router";
 import { Feather } from "@expo/vector-icons";
 import { Image, Platform, Pressable, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { useAuthStore } from "@mpay/stores/auth-store";
 
 const heroImage = require("../../assets/welcome-hero.png");
 
@@ -18,6 +19,16 @@ const bodyFont = Platform.select({
 });
 
 export default function WelcomeScreen() {
+  const { currentUser, isHydrating, isLocked } = useAuthStore();
+
+  if (isHydrating) {
+    return null;
+  }
+
+  if (currentUser) {
+    return <Redirect href={isLocked ? "/lock" : "/(tabs)/home"} />;
+  }
+
   return (
     <SafeAreaView style={s.page}>
       <View style={s.container}>

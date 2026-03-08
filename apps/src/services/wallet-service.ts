@@ -48,6 +48,7 @@ interface WalletService {
   exportSecretKeyBytes(): Promise<number[] | null>;
   getKeypair(): Promise<Keypair | null>;
   clearWallet(): Promise<void>;
+  clearStoredUserProfile(): Promise<void>;
   storeUserProfile(profile: StoredUserProfile): Promise<void>;
   getStoredUserProfile(): Promise<StoredUserProfile | null>;
 }
@@ -77,7 +78,7 @@ class SecureStoreWalletService implements WalletService {
     }
 
     // Force-load RNG polyfill in case this module executes before app-level polyfills.
-    require("react-native-get-random-values");
+    await import("react-native-get-random-values");
 
     if (typeof globalWithCrypto.crypto?.getRandomValues !== "function") {
       throw new Error("crypto.getRandomValues is unavailable in this runtime.");
@@ -365,6 +366,10 @@ class SecureStoreWalletService implements WalletService {
     await this.deleteItem(KEY_META);
     await this.deleteItem(KEY_RECOVERY_PHRASE);
     await this.deleteItem(KEY_RECOVERY_BACKED_UP);
+    await this.deleteItem(KEY_PROFILE);
+  }
+
+  async clearStoredUserProfile(): Promise<void> {
     await this.deleteItem(KEY_PROFILE);
   }
 }

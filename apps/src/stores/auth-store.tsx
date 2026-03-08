@@ -1,4 +1,5 @@
-import { createContext, ReactNode, useContext, useMemo, useRef, useState } from "react";
+import { createContext, ReactNode, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { supabase } from "@mpay/lib/supabase";
 import { identityProvisioningService } from "@mpay/services/identity-provisioning-service";
 import { web3AuthService } from "@mpay/services/web3-auth-service";
 import { walletService } from "@mpay/services/wallet-service";
@@ -36,20 +37,32 @@ type UserProfile = {
   passcode?: string;
 };
 
+type WalletConflict = {
+  deviceWalletAddress: string;
+  accountWalletAddress: string;
+};
+
 type VerifyResult = {
   ok: boolean;
   error?: string;
   needsPasscodeSetup?: boolean;
   locked?: boolean;
+  needsWalletImport?: boolean;
+  needsWalletSetup?: boolean;
+  needsWalletConflictResolution?: boolean;
 };
 
 type AuthStore = {
   currentUser: UserProfile | null;
   isLocked: boolean;
+  isHydrating: boolean;
   pendingAuth: PendingAuth | null;
-  beginAuth: (payload: AuthPayload) => { ok: boolean; error?: string };
+  walletConflict: WalletConflict | null;
+  beginAuth: (payload: AuthPayload) => Promise<{ ok: boolean; error?: string }>;
   connectWallet: (mode: AuthMode) => Promise<VerifyResult>;
-  verifyOtp: (code: string) => VerifyResult;
+  verifyOtp: (code: string) => Promise<VerifyResult>;
+  resendOtp: () => Promise<{ ok: boolean; error?: string }>;
+  clearDeviceWallet: () => Promise<{ ok: boolean; error?: string }>;
   setPasscode: (passcode: string) => { ok: boolean; error?: string };
   unlock: (passcode: string) => { ok: boolean; error?: string };
   lockApp: () => void;
@@ -73,7 +86,8 @@ type AuthStore = {
 
 const AuthContext = createContext<AuthStore | null>(null);
 
-const OTP_CODE = "123456";
+const ACCOUNT_LINK_MODE = process.env.EXPO_PUBLIC_MONOPAY_ACCOUNT_LINK_MODE === "email_phone" ? "email_phone" : "email_only";
+const PHONE_OTP_ENABLED = ACCOUNT_LINK_MODE === "email_phone";
 
 const DEMO_USER: UserProfile = {
   id: "user_demo_1",
@@ -128,11 +142,129 @@ function normalizeTag(tag?: string) {
   return `@${cleaned}`;
 }
 
+type VerifiedEmailIdentity = {
+  userId: string;
+  email: string;
+};
+
+type SupabaseProfileRow = {
+  id: string;
+  full_name: string | null;
+  email: string | null;
+  phone: string | null;
+  wallet_address: string | null;
+  monopay_tag: string | null;
+  metaplex_card_id: string | null;
+};
+
+function mapEmailOtpErrorMessage(message: string) {
+  const lower = message.toLowerCase();
+
+  if (lower.includes("token hash")) {
+    return "Supabase is sending magic links instead of OTP. Switch the email template to include {{ .Token }}.";
+  }
+
+  if (lower.includes("expired")) {
+    return "OTP has expired. Request a new code and try again.";
+  }
+
+  if (lower.includes("signup is disabled")) {
+    return "Signups are disabled in Supabase.";
+  }
+
+  if (lower.includes("signups not allowed")) {
+    return "No account found for this email. Please sign up first.";
+  }
+
+  return message;
+}
+
+async function requestEmailOtp(mode: AuthMode, email: string) {
+  const { error } = await supabase.auth.signInWithOtp({
+    email,
+    options: { shouldCreateUser: mode === "sign-up" }
+  });
+
+  if (error) {
+    throw new Error(mapEmailOtpErrorMessage(error.message));
+  }
+}
+
+async function verifyEmailOtp(email: string, code: string): Promise<VerifiedEmailIdentity> {
+  const types: ("email" | "signup")[] = ["email", "signup"];
+  let lastError = "Unable to verify OTP.";
+
+  for (const type of types) {
+    const { data, error } = await supabase.auth.verifyOtp({
+      email,
+      token: code,
+      type
+    });
+
+    if (!error && data.user?.id) {
+      return {
+        userId: data.user.id,
+        email: data.user.email ?? email
+      };
+    }
+
+    if (error) {
+      lastError = mapEmailOtpErrorMessage(error.message);
+    }
+  }
+
+  throw new Error(lastError);
+}
+
+async function fetchSupabaseProfile(userId: string): Promise<SupabaseProfileRow | null> {
+  const { data, error } = await supabase
+    .from("profiles")
+    .select("id,full_name,email,phone,wallet_address,monopay_tag,metaplex_card_id")
+    .eq("id", userId)
+    .maybeSingle();
+
+  if (error) {
+    console.warn("[auth-store] Failed to fetch profile row:", error.message);
+    return null;
+  }
+
+  return data;
+}
+
+async function upsertSupabaseProfile(input: {
+  userId: string;
+  fullName?: string;
+  email?: string;
+  phone?: string;
+  monopayTag?: string;
+  walletAddress?: string;
+  metaplexCardId?: string;
+}) {
+  const { error } = await supabase.from("profiles").upsert(
+    {
+      id: input.userId,
+      full_name: input.fullName || null,
+      email: input.email || null,
+      phone: input.phone || null,
+      monopay_tag: input.monopayTag || null,
+      wallet_address: input.walletAddress || null,
+      metaplex_card_id: input.metaplexCardId || null,
+    },
+    { onConflict: "id" }
+  );
+
+  if (error) {
+    throw new Error(error.message);
+  }
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [registeredUsers, setRegisteredUsers] = useState<UserProfile[]>([DEMO_USER]);
   const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
   const [pendingAuth, setPendingAuth] = useState<PendingAuth | null>(null);
+  const [walletConflict, setWalletConflict] = useState<WalletConflict | null>(null);
   const [isLocked, setIsLocked] = useState(false);
+  const [isHydrating, setIsHydrating] = useState(true);
 
   const registeredUsersRef = useRef(registeredUsers);
   registeredUsersRef.current = registeredUsers;
@@ -140,12 +272,70 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const currentUserRef = useRef(currentUser);
   currentUserRef.current = currentUser;
 
+  useEffect(() => {
+    let active = true;
+
+    const hydrate = async () => {
+      try {
+        const [storedProfile, storedWallet] = await Promise.all([
+          walletService.getStoredUserProfile(),
+          walletService.getStoredWallet(),
+        ]);
+
+        if (!active) {
+          return;
+        }
+
+        if (!storedProfile) {
+          setCurrentUser(null);
+          setWalletConflict(null);
+          setIsLocked(false);
+          return;
+        }
+
+        const hydrated: UserProfile = {
+          ...storedProfile,
+          walletAddress: storedProfile.walletAddress || storedWallet?.publicKey,
+        };
+
+        setCurrentUser(hydrated);
+        setRegisteredUsers((prev) => [hydrated, ...prev.filter((entry) => entry.id !== hydrated.id)]);
+
+        if (storedWallet?.publicKey && hydrated.walletAddress && storedWallet.publicKey !== hydrated.walletAddress) {
+          setWalletConflict({
+            deviceWalletAddress: storedWallet.publicKey,
+            accountWalletAddress: hydrated.walletAddress,
+          });
+          setIsLocked(false);
+          return;
+        }
+
+        setWalletConflict(null);
+        setIsLocked(Boolean(hydrated.passcode));
+      } finally {
+        if (active) {
+          setIsHydrating(false);
+        }
+      }
+    };
+
+    void hydrate();
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
   const store = useMemo<AuthStore>(() => {
     return {
       currentUser,
       pendingAuth,
+      walletConflict,
       isLocked,
-      beginAuth: (payload) => {
+      isHydrating,
+      beginAuth: async (payload) => {
+        setWalletConflict(null);
+
         if (payload.mode === "sign-up" && payload.fullName && payload.fullName.trim().length < 2) {
           return { ok: false, error: "Enter your full name." };
         }
@@ -156,6 +346,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const normalizedEmail = channel === "email" ? normalizeEmail(payload.email ?? "") : undefined;
 
         if (channel === "phone") {
+          if (!PHONE_OTP_ENABLED) {
+            return { ok: false, error: "Phone OTP is disabled right now. Use email instead." };
+          }
+
           if (!normalizedPhone || normalizedPhone.length < 11) {
             return { ok: false, error: "Enter a valid phone number." };
           }
@@ -163,13 +357,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           return { ok: false, error: "Enter a valid email address." };
         }
 
-        if (payload.mode === "sign-in") {
-          const existing = registeredUsers.find((user) =>
-            channel === "phone" ? user.phone === normalizedPhone : user.email === normalizedEmail
+        if (payload.mode === "sign-in" && channel === "phone") {
+          const existing = registeredUsersRef.current.find((user) =>
+            user.phone === normalizedPhone
           );
 
           if (!existing) {
             return { ok: false, error: "Account not found. Please sign up first." };
+          }
+        }
+
+        if (channel === "email" && normalizedEmail) {
+          try {
+            await requestEmailOtp(payload.mode, normalizedEmail);
+          } catch (error) {
+            return {
+              ok: false,
+              error: error instanceof Error ? error.message : "Could not send OTP. Please try again.",
+            };
           }
         }
 
@@ -180,6 +385,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       connectWallet: async (mode) => {
         const traceId = `wc-${Date.now().toString(36)}`;
         console.log("[wallet-connect-trace] store:start", { traceId, mode });
+        setWalletConflict(null);
 
         try {
           if (mode === "sign-in") {
@@ -202,24 +408,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               localRegisteredUsersCount: registeredUsersRef.current.length,
             });
 
-            if (!existing) {
-              const persisted = await walletService.getStoredUserProfile();
-              console.log("[wallet-connect-trace] store:persisted-profile", {
-                traceId,
-                found: Boolean(persisted),
-                persistedWalletAddress: persisted?.walletAddress,
-                persistedUserId: persisted?.id,
-                persistedHasPasscode: Boolean(persisted?.passcode),
-                persistedHasSupabaseUserId: Boolean(persisted?.supabaseUserId),
-              });
-
-              if (persisted && persisted.walletAddress === stored.publicKey) {
-                existing = persisted;
-                setRegisteredUsers((prev) => [persisted, ...prev]);
-              } else {
-                return { ok: false, error: "No account linked to this wallet." };
-              }
-            }
+            const persisted = await walletService.getStoredUserProfile();
+            console.log("[wallet-connect-trace] store:persisted-profile", {
+              traceId,
+              found: Boolean(persisted),
+              persistedWalletAddress: persisted?.walletAddress,
+              persistedUserId: persisted?.id,
+              persistedHasPasscode: Boolean(persisted?.passcode),
+              persistedHasSupabaseUserId: Boolean(persisted?.supabaseUserId),
+            });
 
             console.log("[wallet-connect-trace] store:web3-auth:start", {
               traceId,
@@ -232,6 +429,80 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               walletAddress: web3Auth.walletAddress,
               expiresAt: web3Auth.expiresAt,
             });
+
+            if (!existing) {
+              if (
+                persisted &&
+                (
+                  persisted.walletAddress === stored.publicKey ||
+                  persisted.supabaseUserId === web3Auth.userId
+                )
+              ) {
+                existing = persisted;
+                setRegisteredUsers((prev) => [persisted, ...prev]);
+              }
+            }
+
+            if (!existing) {
+              const remoteProfile = await fetchSupabaseProfile(web3Auth.userId);
+              const remoteIdentity = await identityProvisioningService.getIdentityForWallet(stored.publicKey).catch(() => null);
+
+              if (remoteProfile) {
+                const fallbackName = remoteProfile.full_name || remoteIdentity?.displayName || "Wallet User";
+                const resolvedTag =
+                  normalizeTag(remoteProfile.monopay_tag || remoteIdentity?.monopayTag || createHandle(fallbackName)) ||
+                  createHandle(fallbackName);
+
+                existing = {
+                  id: `user_${remoteProfile.id}`,
+                  fullName: fallbackName,
+                  phone: remoteProfile.phone || undefined,
+                  email: remoteProfile.email || undefined,
+                  walletAddress: remoteProfile.wallet_address || stored.publicKey,
+                  supabaseUserId: remoteProfile.id,
+                  handle: resolvedTag,
+                  monopayTag: resolvedTag,
+                  metaplexCardId: remoteProfile.metaplex_card_id || remoteIdentity?.metaplexCardId || undefined,
+                  metaplexCardStatus: remoteIdentity?.metaplexCardStatus,
+                  metaplexNetwork: remoteIdentity?.metaplexNetwork,
+                  metaplexSyncStatus: remoteIdentity?.metaplexSyncStatus,
+                  metaplexLastSyncAt: remoteIdentity?.metaplexLastSyncAt,
+                  metaplexLastTxSignature: remoteIdentity?.metaplexLastTxSignature,
+                  passcode:
+                    persisted && (persisted.supabaseUserId === remoteProfile.id || persisted.walletAddress === stored.publicKey)
+                      ? persisted.passcode
+                      : undefined,
+                };
+                const hydratedByProfile = existing;
+                setRegisteredUsers((prev) => [hydratedByProfile, ...prev.filter((entry) => entry.id !== hydratedByProfile.id)]);
+              } else if (remoteIdentity?.ownerUserId && remoteIdentity.ownerUserId === web3Auth.userId) {
+                const fallbackName = remoteIdentity.displayName || "Wallet User";
+                const resolvedTag = normalizeTag(remoteIdentity.monopayTag || createHandle(fallbackName)) || createHandle(fallbackName);
+
+                existing = {
+                  id: `user_${web3Auth.userId}`,
+                  fullName: fallbackName,
+                  walletAddress: stored.publicKey,
+                  supabaseUserId: web3Auth.userId,
+                  handle: resolvedTag,
+                  monopayTag: resolvedTag,
+                  metaplexCardId: remoteIdentity.metaplexCardId,
+                  metaplexCardStatus: remoteIdentity.metaplexCardStatus,
+                  metaplexNetwork: remoteIdentity.metaplexNetwork,
+                  metaplexSyncStatus: remoteIdentity.metaplexSyncStatus,
+                  metaplexLastSyncAt: remoteIdentity.metaplexLastSyncAt,
+                  metaplexLastTxSignature: remoteIdentity.metaplexLastTxSignature,
+                  passcode:
+                    persisted && (persisted.supabaseUserId === web3Auth.userId || persisted.walletAddress === stored.publicKey)
+                      ? persisted.passcode
+                      : undefined,
+                };
+                const hydratedByIdentity = existing;
+                setRegisteredUsers((prev) => [hydratedByIdentity, ...prev.filter((entry) => entry.id !== hydratedByIdentity.id)]);
+              } else {
+                return { ok: false, error: "No account linked to this wallet." };
+              }
+            }
 
             const syncedExisting =
               existing.supabaseUserId && existing.supabaseUserId === web3Auth.userId
@@ -331,65 +602,254 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           throw error;
         }
       },
-      verifyOtp: (code) => {
+      verifyOtp: async (code) => {
         if (!pendingAuth) {
           return { ok: false, error: "No active verification request. Start again." };
         }
 
-        if (code !== OTP_CODE) {
-          return { ok: false, error: "Invalid OTP code." };
+        const normalizedCode = code.trim();
+
+        if (normalizedCode.length !== 6) {
+          return { ok: false, error: "Enter a valid 6-digit OTP." };
         }
 
-        if (pendingAuth.mode === "sign-in") {
-          const existing = registeredUsers.find((user) =>
-            pendingAuth.channel === "phone" ? user.phone === pendingAuth.phone : user.email === pendingAuth.email
-          );
+        if (pendingAuth.channel === "phone") {
+          return { ok: false, error: "Phone OTP is disabled right now. Use email instead." };
+        }
 
-          if (!existing) {
-            return { ok: false, error: "No account found. Create one first." };
-          }
+        if (!pendingAuth.email) {
+          return { ok: false, error: "Email missing for verification." };
+        }
 
-          setCurrentUser(existing);
-          setPendingAuth(null);
-          setIsLocked(Boolean(existing.passcode));
+        let verifiedEmailIdentity: VerifiedEmailIdentity;
 
+        try {
+          verifiedEmailIdentity = await verifyEmailOtp(pendingAuth.email, normalizedCode);
+        } catch (error) {
           return {
-            ok: true,
-            needsPasscodeSetup: !existing.passcode,
-            locked: Boolean(existing.passcode)
+            ok: false,
+            error: error instanceof Error ? error.message : "Unable to verify OTP.",
           };
         }
 
-        const alreadyExists = registeredUsers.some((user) =>
-          pendingAuth.channel === "phone" ? user.phone === pendingAuth.phone : user.email === pendingAuth.email
+        if (pendingAuth.mode === "sign-in") {
+          const remoteProfile = await fetchSupabaseProfile(verifiedEmailIdentity.userId);
+
+          if (!remoteProfile) {
+            return { ok: false, error: "No account found for this email. Please sign up first." };
+          }
+
+          const existing = registeredUsersRef.current.find((user) =>
+            user.supabaseUserId === verifiedEmailIdentity.userId || user.email === verifiedEmailIdentity.email
+          );
+
+          const localProfile = await walletService.getStoredUserProfile();
+          const localWallet = await walletService.getStoredWallet();
+          const fallbackName = verifiedEmailIdentity.email.split("@")[0] || "MonoPay User";
+          const resolvedTag = normalizeTag(remoteProfile.monopay_tag || existing?.monopayTag || createHandle(fallbackName)) || createHandle(fallbackName);
+          const remoteWalletAddress = remoteProfile.wallet_address || existing?.walletAddress;
+          const localWalletAddress = localWallet?.publicKey || localProfile?.walletAddress;
+          const localProfileBelongsToVerifiedUser = Boolean(localProfile) &&
+            (
+              localProfile?.supabaseUserId === verifiedEmailIdentity.userId ||
+              normalizeEmail(localProfile?.email || "") === normalizeEmail(verifiedEmailIdentity.email) ||
+              (Boolean(localProfile?.walletAddress) &&
+                Boolean(remoteWalletAddress) &&
+                localProfile?.walletAddress === remoteWalletAddress)
+            );
+
+          if (remoteWalletAddress && localWalletAddress && remoteWalletAddress !== localWalletAddress) {
+            const conflictUser: UserProfile = {
+              id: `user_${remoteProfile.id}`,
+              fullName: remoteProfile.full_name || existing?.fullName || fallbackName,
+              phone: remoteProfile.phone || existing?.phone || undefined,
+              email: remoteProfile.email || verifiedEmailIdentity.email,
+              walletAddress: remoteWalletAddress,
+              supabaseUserId: remoteProfile.id,
+              handle: resolvedTag,
+              monopayTag: resolvedTag,
+              metaplexCardId: remoteProfile.metaplex_card_id || existing?.metaplexCardId || undefined,
+            };
+
+            setCurrentUser(conflictUser);
+            setRegisteredUsers((prev) => [conflictUser, ...prev.filter((entry) => entry.id !== conflictUser.id)]);
+            setPendingAuth(null);
+            setWalletConflict({
+              deviceWalletAddress: localWalletAddress,
+              accountWalletAddress: remoteWalletAddress,
+            });
+            setIsLocked(false);
+
+            return {
+              ok: true,
+              needsWalletConflictResolution: true,
+            };
+          }
+
+          const resolvedWalletAddress = remoteWalletAddress || (localProfileBelongsToVerifiedUser ? localWalletAddress : undefined);
+          const mergedPasscode = (localProfileBelongsToVerifiedUser ? localProfile?.passcode : undefined) || existing?.passcode;
+          const nextUser: UserProfile = {
+            id: `user_${remoteProfile.id}`,
+            fullName: remoteProfile.full_name || existing?.fullName || fallbackName,
+            phone: remoteProfile.phone || existing?.phone || undefined,
+            email: remoteProfile.email || verifiedEmailIdentity.email,
+            walletAddress: resolvedWalletAddress,
+            supabaseUserId: remoteProfile.id,
+            handle: resolvedTag,
+            monopayTag: resolvedTag,
+            metaplexCardId: remoteProfile.metaplex_card_id || existing?.metaplexCardId || undefined,
+            passcode: mergedPasscode,
+          };
+
+          setCurrentUser(nextUser);
+          setRegisteredUsers((prev) => [nextUser, ...prev.filter((entry) => entry.id !== nextUser.id)]);
+          setPendingAuth(null);
+          setWalletConflict(null);
+
+          if (remoteWalletAddress && !localWallet) {
+            const walletImportUser = { ...nextUser, passcode: undefined };
+            setCurrentUser(walletImportUser);
+            setRegisteredUsers((prev) => [walletImportUser, ...prev.filter((entry) => entry.id !== walletImportUser.id)]);
+            setIsLocked(false);
+            void walletService.storeUserProfile(walletImportUser).catch((error) => {
+              console.warn("[auth-store] Failed to persist wallet-import-required profile:", error);
+            });
+
+            return {
+              ok: true,
+              needsWalletImport: true,
+            };
+          }
+
+          if (!resolvedWalletAddress) {
+            const walletSetupUser = { ...nextUser, passcode: undefined };
+            setCurrentUser(walletSetupUser);
+            setRegisteredUsers((prev) => [walletSetupUser, ...prev.filter((entry) => entry.id !== walletSetupUser.id)]);
+            setIsLocked(false);
+            void walletService.storeUserProfile(walletSetupUser).catch((error) => {
+              console.warn("[auth-store] Failed to persist wallet-setup-required profile:", error);
+            });
+
+            return {
+              ok: true,
+              needsWalletSetup: true,
+            };
+          }
+
+          setIsLocked(Boolean(mergedPasscode));
+          void walletService.storeUserProfile(nextUser).catch((error) => {
+            console.warn("[auth-store] Failed to persist signed-in profile:", error);
+          });
+
+          return {
+            ok: true,
+            needsPasscodeSetup: !mergedPasscode,
+            locked: Boolean(mergedPasscode),
+          };
+        }
+
+        const alreadyExists = registeredUsersRef.current.some((user) =>
+          user.supabaseUserId === verifiedEmailIdentity.userId || user.email === verifiedEmailIdentity.email
         );
 
         if (alreadyExists) {
           return {
             ok: false,
-            error: pendingAuth.channel === "phone" ? "An account already exists for this number." : "An account already exists for this email."
+            error: "An account already exists for this email."
           };
         }
 
+        const existingRemoteProfile = await fetchSupabaseProfile(verifiedEmailIdentity.userId);
+
+        if (existingRemoteProfile) {
+          return {
+            ok: false,
+            error: "An account already exists for this email. Please sign in.",
+          };
+        }
+
+        const generatedTag = normalizeTag(`@mono${verifiedEmailIdentity.userId.replace(/-/g, "").slice(0, 8)}`) || "@mono";
         const newUser: UserProfile = {
-          id: `user_${Date.now()}`,
+          id: `user_${verifiedEmailIdentity.userId}`,
           fullName: pendingAuth.fullName ?? "MonoPay User",
-          phone: pendingAuth.phone,
-          email: pendingAuth.email,
-          handle: createHandle(pendingAuth.fullName ?? "user"),
-          monopayTag: createHandle(pendingAuth.fullName ?? "user")
+          email: verifiedEmailIdentity.email,
+          supabaseUserId: verifiedEmailIdentity.userId,
+          handle: generatedTag,
+          monopayTag: generatedTag,
         };
+
+        try {
+          await upsertSupabaseProfile({
+            userId: verifiedEmailIdentity.userId,
+            fullName: newUser.fullName,
+            email: newUser.email,
+            phone: newUser.phone,
+            monopayTag: newUser.monopayTag,
+            walletAddress: newUser.walletAddress,
+            metaplexCardId: newUser.metaplexCardId,
+          });
+        } catch (error) {
+          return {
+            ok: false,
+            error: error instanceof Error ? `Profile save failed: ${error.message}` : "Profile save failed.",
+          };
+        }
 
         setRegisteredUsers((prev) => [newUser, ...prev]);
         setCurrentUser(newUser);
         setPendingAuth(null);
+        setWalletConflict(null);
         setIsLocked(false);
+
+        void walletService.storeUserProfile(newUser).catch((error) => {
+          console.warn("[auth-store] Failed to persist signed-up profile:", error);
+        });
 
         return {
           ok: true,
           needsPasscodeSetup: true,
           locked: false
         };
+      },
+      resendOtp: async () => {
+        if (!pendingAuth?.email) {
+          return { ok: false, error: "No active email verification request." };
+        }
+
+        try {
+          await requestEmailOtp(pendingAuth.mode, pendingAuth.email);
+          return { ok: true };
+        } catch (error) {
+          return {
+            ok: false,
+            error: error instanceof Error ? error.message : "Could not resend OTP.",
+          };
+        }
+      },
+      clearDeviceWallet: async () => {
+        try {
+          await walletService.clearWallet();
+          setWalletConflict(null);
+          setIsLocked(false);
+
+          setCurrentUser((prev) => {
+            if (!prev) {
+              return prev;
+            }
+
+            return {
+              ...prev,
+              passcode: undefined,
+            };
+          });
+
+          return { ok: true };
+        } catch (error) {
+          return {
+            ok: false,
+            error: error instanceof Error ? error.message : "Failed to clear device wallet.",
+          };
+        }
       },
       setPasscode: (passcode) => {
         if (!currentUser) {
@@ -437,8 +897,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         void web3AuthService.signOut().catch((error) => {
           console.warn("[auth-store] Supabase sign-out warning:", error);
         });
+        void walletService.clearStoredUserProfile().catch((error) => {
+          console.warn("[auth-store] Failed to clear stored user profile on sign-out:", error);
+        });
         setCurrentUser(null);
         setPendingAuth(null);
+        setWalletConflict(null);
         setIsLocked(false);
       },
       updateProfile: async (input) => {
@@ -536,6 +1000,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         setCurrentUser(updated);
         setRegisteredUsers((prev) => prev.map((u) => (u.id === updated.id ? updated : u)));
+        setWalletConflict(null);
 
         void walletService.storeUserProfile(updated).catch((error) => {
           console.warn("[auth-store] Failed to persist wallet-linked profile:", error);
@@ -544,7 +1009,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return { ok: true };
       }
     };
-  }, [currentUser, isLocked, pendingAuth, registeredUsers]);
+  }, [currentUser, isLocked, isHydrating, pendingAuth, walletConflict]);
 
   return <AuthContext.Provider value={store}>{children}</AuthContext.Provider>;
 }

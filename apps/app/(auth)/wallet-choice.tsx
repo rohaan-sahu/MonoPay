@@ -43,34 +43,45 @@ export default function WalletChoiceScreen() {
         throw new Error("Wallet mismatch after Web3 authentication.");
       }
 
-      const identity = await identityProvisioningService.ensureIdentityForWallet({
-        walletAddress: wallet.publicKey,
-        ownerUserId: web3Auth.userId,
-        displayName: currentUser.fullName,
-        phone: currentUser.phone,
-        email: currentUser.email,
-        preferredTag: currentUser.monopayTag || currentUser.handle,
-        existingMonopayTag: currentUser.monopayTag,
-        existingMetaplexCardId: currentUser.metaplexCardId,
-        existingMetaplexCardStatus: currentUser.metaplexCardStatus,
-        existingMetaplexNetwork: currentUser.metaplexNetwork,
-      });
-      console.log("[wallet-flow] identity:ok", {
-        walletAddress: identity.walletAddress,
-        monopayTag: identity.monopayTag,
-        metaplexCardId: identity.metaplexCardId,
-        source: identity.source,
-      });
+      let identity:
+        | Awaited<ReturnType<typeof identityProvisioningService.ensureIdentityForWallet>>
+        | null = null;
+
+      try {
+        identity = await identityProvisioningService.ensureIdentityForWallet({
+          walletAddress: wallet.publicKey,
+          ownerUserId: web3Auth.userId,
+          displayName: currentUser.fullName,
+          phone: currentUser.phone,
+          email: currentUser.email,
+          preferredTag: currentUser.monopayTag || currentUser.handle,
+          existingMonopayTag: currentUser.monopayTag,
+          existingMetaplexCardId: currentUser.metaplexCardId,
+          existingMetaplexCardStatus: currentUser.metaplexCardStatus,
+          existingMetaplexNetwork: currentUser.metaplexNetwork,
+        });
+        console.log("[wallet-flow] identity:ok", {
+          walletAddress: identity.walletAddress,
+          monopayTag: identity.monopayTag,
+          metaplexCardId: identity.metaplexCardId,
+          source: identity.source,
+        });
+      } catch (identityError) {
+        console.warn("[wallet-flow] identity:warn", {
+          walletAddress: wallet.publicKey,
+          message: identityError instanceof Error ? identityError.message : String(identityError),
+        });
+      }
 
       const result = linkWalletToUser(wallet.publicKey, {
         supabaseUserId: web3Auth.userId,
-        monopayTag: identity.monopayTag,
-        metaplexCardId: identity.metaplexCardId,
-        metaplexCardStatus: identity.metaplexCardStatus,
-        metaplexNetwork: identity.metaplexNetwork,
-        metaplexSyncStatus: identity.metaplexSyncStatus,
-        metaplexLastSyncAt: identity.metaplexLastSyncAt,
-        metaplexLastTxSignature: identity.metaplexLastTxSignature,
+        monopayTag: identity?.monopayTag,
+        metaplexCardId: identity?.metaplexCardId,
+        metaplexCardStatus: identity?.metaplexCardStatus,
+        metaplexNetwork: identity?.metaplexNetwork,
+        metaplexSyncStatus: identity?.metaplexSyncStatus || "failed",
+        metaplexLastSyncAt: identity?.metaplexLastSyncAt,
+        metaplexLastTxSignature: identity?.metaplexLastTxSignature,
       });
 
       if (!result.ok) {
