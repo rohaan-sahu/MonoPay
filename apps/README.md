@@ -1,73 +1,91 @@
-# MonoPay App (Expo + React Native)
+# MonoPay App
 
-## Setup
+Private social payments on Solana with wallet-first onboarding, QR-based pay/request flows, profile identity, and mobile-native UX built with Expo + React Native.
+
+## Links
+
+- Website: https://monopay-gilt.vercel.app/
+- Demo video: https://www.youtube.com/watch?v=udU0tBlfVmc
+
+## Scan To Access The App
+
+Scan this QR code to open the shared MonoPay app build:
+
+<img src="image.png" alt="MonoPay app access QR code" width="280" />
+
+## What MonoPay Does
+
+- Wallet-first onboarding with create wallet, import wallet, and external wallet connection support
+- QR request and scan-to-pay flows
+- Email OTP authentication with local passcode lock
+- Solana payments with public SOL transfers and private USDC rail support
+- MonoPay tag resolution for pay-by-username
+- Auto-provisioned wallet identity and profile data
+
+## Current Stack
+
+- Expo + React Native + Expo Router
+- Solana Web3 / SPL token flows
+- Supabase Auth + app data
+- MagicBlock private transfer rail for supported USDC flow
+- Metaplex identity provisioning
+- Zustand state management
+
+## Project Layout
+
+```text
+app/        Expo Router screens
+assets/     Images, metadata, static assets
+src/        Services, stores, components, styles
+scripts/    Local helpers and utilities
+```
+
+## Run Locally
 
 ```bash
 npm install
 npm run start
 ```
 
-## Scripts
+Useful commands:
 
-- `npm run start`
 - `npm run android`
 - `npm run ios`
-- `npm run web`
 - `npm run lint`
 - `npm run typecheck`
+- `npm run eas:build:android:preview`
 
-## Structure
+## Environment
 
-- `app/index.tsx` launch gate (`auth` -> `lock` -> `tabs`)
-- `app/(auth)/` onboarding + sign in/sign up + OTP + passcode
-- `app/lock.tsx` mandatory lock screen
-- `app/(tabs)/` main app shell (`home`, `scan`, `chat`, `profile`)
-- `assets/` static assets
-- `src/` shared modules (`components`, `services`, `stores`, `styles`)
+Core app envs currently used in `.env` / EAS:
 
-## Notes
+- `EXPO_PUBLIC_SUPABASE_URL`
+- `EXPO_PUBLIC_SUPABASE_ANON_KEY`
+- `EXPO_PUBLIC_WEB3_SIGNIN_URL`
+- `EXPO_PUBLIC_MONOPAY_RPC_URL`
+- `EXPO_PUBLIC_MONOPAY_MAGICBLOCK_ENABLED`
+- `EXPO_PUBLIC_MONOPAY_MAGICBLOCK_API_BASE_URL`
+- `EXPO_PUBLIC_MONOPAY_MAGICBLOCK_DEPOSIT_BEFORE_TRANSFER`
+- `EXPO_PUBLIC_MONOPAY_MAGICBLOCK_INIT_RECIPIENT`
+- `EXPO_PUBLIC_MONOPAY_ACCOUNT_LINK_MODE`
+- `EXPO_PUBLIC_MONOPAY_IDCARD_METADATA_URI`
 
-- OTP code for sandbox flow is `123456`.
-- Wallet auth includes Supabase Web3 sign-in for embedded Solana wallets.
-- Wallet import parser logic (private key bytes/base58/mnemonic) is in `src/services/wallet-import-parser.ts`.
+See `.env.example` for the local template.
 
-## SDK Sandbox
+## Payments
 
-- Open `Profile -> SDK Sandbox (POC)` to test:
-  - SOL transfer flow
-  - Supabase OTP flow for email + phone verification
-  - Metaplex Core identity-card create/update/deactivate
-- Copy `apps/.env.example` to `apps/.env` and fill values before running.
+- SOL transfers use the standard Solana public transfer flow.
+- USDC uses the private MagicBlock rail when enabled.
+- MonoPay tag resolution supports pay-by-username.
 
-## Payment Rails
+## Identity And Auth
 
-- SOL: standard public Solana transfer.
-- USDC:
-  - MagicBlock private transfer when `EXPO_PUBLIC_MONOPAY_MAGICBLOCK_ENABLED=true`
-  - SPL public transfer fallback when MagicBlock is disabled.
+- Email OTP sign-in/sign-up
+- Embedded wallet create/import flow
+- Passcode lock on app reopen
+- Auto-provisioned MonoPay tag + wallet identity record
 
-## Account Link Mode
+## Build Notes
 
-- `EXPO_PUBLIC_MONOPAY_ACCOUNT_LINK_MODE=email_only` (recommended while Twilio/SMS is not configured)
-- `EXPO_PUBLIC_MONOPAY_ACCOUNT_LINK_MODE=email_phone` (requires SMS provider in Supabase)
-- For email OTP (instead of magic-link), configure Supabase template with `{{ .Token }}`.
-
-## External Wallet (Android Beta)
-
-- Set `EXPO_PUBLIC_MONOPAY_MWA_ENABLED=true` to enable Solana Mobile Wallet Adapter connect buttons on Android auth screens.
-- Current beta scope is connect/auth bootstrap only; embedded wallet flow remains default and unchanged.
-
-## Identity Auto-Provisioning
-
-- Wallet create/import auto-provisions:
-  - MonoPay tag
-  - Metaplex identity card
-  - local wallet identity mapping cache
-- For full remote persistence, run `scripts/supabase-phase3-identity.sql` in Supabase SQL editor.
-
-## Metadata (MonoPay ID Card)
-
-- Versioned metadata template: `apps/assets/metadata/monopay-id-card-v1.json`
-- Metadata pipeline guide: `apps/assets/metadata/README.md`
-- Expected URI pattern:
-  - `https://<supabase-project-ref>.supabase.co/storage/v1/object/public/monopay-assets/metadata/monopay-id-card-v1.json`
+- This build currently targets devnet.
+- Mainnet is intentionally disabled in the shipped UI for now.

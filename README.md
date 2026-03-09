@@ -1,6 +1,6 @@
 # MonoPay Workspace
 
-The active Expo app lives in `apps/`.
+The active mobile app lives in `apps/`.
 
 ## Run the app
 
@@ -12,5 +12,5 @@ npm run start
 
 ## Notes
 
-- `apps/` contains the current mobile app codebase.
-- Old root-level Expo scaffold files were removed from this branch to avoid duplicate `app/` and `apps/` trees on GitHub.
+- `apps/` contains the production mobile app codebase.
+- The legacy root Expo scaffold was removed so GitHub reflects the current app structure cleanly.
