@@ -12,7 +12,7 @@ function requiredEnv(name: string) {
   const value = process.env[name]?.trim();
 
   if (!value) {
-    throw new Error(`Missing ${name}. Add it to apps/.env before using the SDK sandbox.`);
+    throw new Error(`Missing ${name}. Add it to .env before using the SDK sandbox.`);
   }
 
   return value;
