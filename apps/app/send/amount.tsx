@@ -22,14 +22,17 @@ export default function AmountScreen() {
     recipientName?: string;
     source?: string;
     amount?: string;
+    currency?: string;
+    isStable?: string;
+    memo?: string;
   }>();
   const qrRecipient = typeof params.recipient === "string" ? params.recipient.trim() : "";
   const qrRecipientName = typeof params.recipientName === "string" ? params.recipientName.trim() : "";
-  const isQrPrefill = params.source === "qr" && qrRecipient.length > 0;
+  const hasPrefilledRecipient = qrRecipient.length > 0 && (params.source === "qr" || params.source === "recipient");
   const [amount, setAmount] = useState(() =>
-    params.source === "qr" && typeof params.amount === "string" ? params.amount : ""
+    (params.source === "qr" || params.source === "recipient") && typeof params.amount === "string" ? params.amount : ""
   );
-  const [memo, setMemo] = useState("");
+  const [memo, setMemo] = useState(typeof params.memo === "string" ? params.memo : "");
   const [currencies, setCurrencies] = useState<WalletBalanceEntry[]>(FALLBACK_CURRENCIES);
   const [currencyIndex, setCurrencyIndex] = useState(0);
 
@@ -91,7 +94,7 @@ export default function AmountScreen() {
   };
 
   const handleNext = () => {
-    if (isQrPrefill) {
+    if (hasPrefilledRecipient) {
       router.push({
         pathname: "/send/confirm",
         params: {

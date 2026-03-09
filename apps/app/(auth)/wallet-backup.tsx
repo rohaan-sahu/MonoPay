@@ -8,6 +8,8 @@ import { walletService } from "@mpay/services/wallet-service";
 import { useAuthStore } from "@mpay/stores/auth-store";
 import { cheksAuthScreen as s } from "@mpay/styles/cheksAuthScreen";
 
+const FOOTER_CLEARANCE = 172;
+
 export default function WalletBackupScreen() {
   const insets = useSafeAreaInsets();
   const { currentUser } = useAuthStore();
@@ -102,7 +104,7 @@ export default function WalletBackupScreen() {
           <View style={[s.orb, s.orbTop]} />
           <View style={[s.orb, s.orbBottom]} />
 
-          <View style={s.content}>
+          <View style={[s.content, styles.contentShell]}>
             <View style={s.headerRow}>
               <Pressable style={s.iconButton} onPress={() => router.back()}>
                 <Feather name="arrow-left" size={20} color="#525252" />
@@ -111,12 +113,17 @@ export default function WalletBackupScreen() {
             </View>
 
             <ScrollView
+              style={styles.scrollView}
               showsVerticalScrollIndicator
               alwaysBounceVertical
+              nestedScrollEnabled
               keyboardShouldPersistTaps="always"
               keyboardDismissMode="interactive"
               contentInsetAdjustmentBehavior="automatic"
-              contentContainerStyle={[styles.scrollContent, { paddingBottom: Math.max(24, insets.bottom + 12) }]}
+              contentContainerStyle={[
+                styles.scrollContent,
+                { paddingBottom: Math.max(FOOTER_CLEARANCE, FOOTER_CLEARANCE + insets.bottom) }
+              ]}
             >
               <View style={s.headingWrap}>
                 <Text style={s.heading}>
@@ -215,6 +222,12 @@ export default function WalletBackupScreen() {
 }
 
 const styles = StyleSheet.create({
+  contentShell: {
+    minHeight: 0,
+  },
+  scrollView: {
+    flex: 1,
+  },
   scrollContent: {
     flexGrow: 1,
     paddingBottom: 20,
