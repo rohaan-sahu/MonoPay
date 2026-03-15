@@ -6,25 +6,38 @@
 
 ---
 
-## Core Features
+## Links
 
-* **Private Payments:** Built with privacy-first architecture where only the payer and payee have visibility into account states and transaction details. Uses Inco for privacy.
-* **QR-Based Ecosystem:** Instant scan-and-pay functionality for a frictionless, retail-inspired experience.
-* **Social Chat Layer:** A dedicated messaging interface where users can send, request, and track private payments within a conversation.
-* **Metaplex Identity:** During onboarding, users mint a **Metaplex Core** asset that acts as their unique, shareable "Identity Card."
-* **Secure Access:** Mandatory 6-digit passcode or pattern lock screen integrated.
+- Website: https://monopay-gilt.vercel.app/
+- Demo video: https://www.youtube.com/watch?v=udU0tBlfVmc
+- APK, pitch, QR, and project assets: https://drive.google.com/drive/folders/19820hg8z-comjPrXLVWigOHD76f7F7e_
+
+## Scan To Access The App
+
+Scan this QR code to open the shared MonoPay app build:
+
+<img src="qr.png" alt="MonoPay app access QR code" width="280" />
+
+## What MonoPay Does
+
+- Wallet-first onboarding with create wallet, import wallet, and external wallet connection support
+- QR request and scan-to-pay flows
+- Email OTP authentication with local passcode lock
+- Solana payments with public SOL transfers and private USDC rail support
+- MonoPay tag resolution for pay-by-username
+- Auto-provisioned wallet identity and profile data
+
+## Current Stack
+
+- Expo + React Native + Expo Router
+- Solana Web3 / SPL token flows
+- Supabase Auth + app data
+- MagicBlock private transfer rail for supported USDC flow
+- Metaplex identity provisioning
+- Zustand state management
 
 ---
 
-## Tech Stack
-
-* **Framework:** React Native with Expo (Expo Router)
-* **Blockchain:** Solana (Devnet)
-* **Smart Contracts:** Anchor Framework
-* **State Management:** Zustand
-* **Identity:** Metaplex Core
-
----
 
 ## Project Structure
 
