@@ -19,8 +19,7 @@ Scan this QR code to open the shared MonoPay app build:
 <img src="MonoPayQRCode.jpg" alt="MonoPay app access QR code" width="280" />
 
 ## Demo
-<video src="https://github.com/rohaan-sahu/MonoPay/raw/main/MonoPay_Use_1.mp4" width="600" autoplay loop muted playsinline>
-</video >
+https://github.com/user-attachments/assets/7c869368-87c8-4cde-8117-0b3a3652f691
 
 ## What MonoPay Does
 
