@@ -6,7 +6,7 @@ Private social payments on Solana with wallet-first onboarding, QR-based pay/req
 
 - Website: https://monopay-gilt.vercel.app/
 - Demo video: https://www.youtube.com/watch?v=udU0tBlfVmc
-- APK, pitch, QR, and project assets: https://drive.google.com/drive/folders/19820hg8z-comjPrXLVWigOHD76f7F7e_
+- APK, pitch, QR, and project assets: <https://drive.google.com/drive/folders/19820hg8z-comjPrXLVWigOHD76f7F7e_>
 
 ## Scan To Access The App
 
