@@ -10,13 +10,16 @@
 
 - Website: https://monopay-gilt.vercel.app/
 - Demo video: https://www.youtube.com/watch?v=udU0tBlfVmc
-- APK, pitch, QR, and project assets: https://drive.google.com/drive/folders/19820hg8z-comjPrXLVWigOHD76f7F7e_
+- APK, pitch, QR, and project assets: <https://drive.google.com/drive/folders/19820hg8z-comjPrXLVWigOHD76f7F7e_>
 
 ## Scan To Access The App
 
 Scan this QR code to open the shared MonoPay app build:
 
-<img src="qr.png" alt="MonoPay app access QR code" width="280" />
+<img src="MonoPayQRCode.jpg" alt="MonoPay app access QR code" width="280" />
+
+## Demo
+<video src="MonoPay_Use_1.mp4" width="600" autoplay loop muted playsinline><souce src="MonoPay_Use_1.mp4"  type="video/mp4" /></video >
 
 ## What MonoPay Does
 
